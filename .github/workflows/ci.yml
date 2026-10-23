@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y bats shellcheck
+      - name: Run bats tests
+        run: bats tests/
+      - name: Lint skills
+        run: scripts/lint-skills.sh
+      - name: Leak check
+        env:
+          LEAK_PATTERNS: ${{ secrets.LEAK_PATTERNS }}
+        run: |
+          # With the LEAK_PATTERNS secret, also scan for the private name list.
+          # Without it (for example on pull requests from forks), scan generic patterns only.
+          if [ -n "$LEAK_PATTERNS" ]; then
+            list="$(mktemp)"
+            printf '%s\n' "$LEAK_PATTERNS" > "$list"
+            # Defence in depth: mask each line so a log never shows it.
+            while IFS= read -r line || [ -n "$line" ]; do
+              if [ -n "$line" ]; then echo "::add-mask::$line"; fi
+            done < "$list"
+            export QUANT_LEAK_LIST="$list"
+          fi
+          status=0
+          scripts/leak-check.sh || status=$?
+          rm -f "${list:-}"
+          exit "$status"
+      - name: Shellcheck
+        run: shellcheck scripts/*.sh evals/run.sh
+      - name: Actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSLo "$RUNNER_TEMP/$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/$archive"
+          echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color

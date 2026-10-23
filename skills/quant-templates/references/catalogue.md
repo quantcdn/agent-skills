@@ -1,0 +1,58 @@
+# Template catalogue
+
+Public, non-archived repositories in https://github.com/quantcdn-templates, checked 2026-10.
+Each repository's README has the details. Repositories that are private, archived, or for tests are
+not listed.
+
+## App templates (Quant Cloud)
+
+Container apps. CI builds the image and deploys it with the Quant Cloud actions. Service = the
+compose service name, which is also the image tag prefix (`<service>-latest` for `main`).
+
+| Repository | What it is | Base image | Service | Database | Notes |
+|---|---|---|---|---|---|
+| `app-node` | Node.js base image (proxy on 3000, app on 3001) | - | `node` | - | Foundation for the Node templates; not a starting point (`template_type: base`). Tags for Node LTS versions |
+| `app-apache-php` | Apache + PHP base image (PHP 8.4 default; 8.3, 8.2, 7.4 tags) | - | `apache-php` | MySQL | Foundation for the PHP templates; can run plain PHP |
+| `app-nextjs` | Next.js, App Router, server rendering (standalone output) | app-node | `app` | - | |
+| `app-nuxt` | Nuxt 3 with server rendering (Nitro) | app-node | `app` | - | |
+| `app-sveltekit` | SvelteKit with `adapter-node` | app-node | `app` | - | |
+| `app-remix` | Remix with server rendering | app-node | `app` | - | |
+| `app-astro` | Astro with server rendering (Node adapter) and API routes | app-node | `astro` | - | |
+| `app-ai-chat` | Streaming AI chat interface (Hono + Preact) using Quant AI | app-node | `app` | - | Needs a Quant API token at run time; see its README |
+| `app-payloadcms` | Payload CMS 3 (Next.js) | app-node | `app` | Postgres (`requires_db`) | Declares 512 CPU / 1024 MiB; secret `PAYLOAD_SECRET` |
+| `app-emdash` | EmDash CMS (TypeScript, built on Astro) | app-node | `emdash` | SQLite by default; Postgres optional | Secrets `EMDASH_AUTH_SECRET`, `EMDASH_PREVIEW_SECRET` |
+| `app-drupal` | Drupal 10 | app-apache-php | `drupal` | MySQL (`requires_db`) | Local Redis labelled `quant.type: none` |
+| `app-drupal-cms` | Drupal CMS | app-apache-php | `drupal-cms` | MySQL (`requires_db`) | Whole codebase on a persistent volume, for UI-based updates and recipes |
+| `app-wordpress` | WordPress | app-apache-php | `wordpress` | MySQL | No `quant/meta.json`: turn on the database yourself |
+| `app-craft-cms` | Craft CMS | app-apache-php | `craft` | MySQL (`requires_db`) | |
+| `app-laravel` | Laravel 11 | app-apache-php | `laravel` | MySQL | No deploy workflow in the repository: add `build-deploy.yaml` (see own-template.md). The compose file ships a fixed, published `APP_KEY`: set a unique `APP_KEY` as an environment secret, remove the default from the compose `environment:`, and rotate it on existing sites |
+| `app-symfony` | Symfony | app-apache-php | `symfony` | Optional | The compose file ships a fixed, published `APP_SECRET`: set a unique `APP_SECRET` as an environment secret, remove the default from the compose `environment:`, and rotate it on existing sites |
+| `app-statamic` | Statamic (flat-file CMS on Laravel) | app-apache-php | `statamic` | Not needed | |
+
+## Static templates (SSG)
+
+CI builds the site; `quantcdn/deploy-action` uploads the output directory to a Quant project, and
+`purge-action` purges the cache.
+
+| Repository | Framework | Output directory | Notes |
+|---|---|---|---|
+| `ssg-astro` | Astro | `dist` | No `quant/meta.json` |
+| `ssg-astro-studio` | Astro with Quant Studio editing (blog, pages, MDX, RSS) | `dist` | Studio template; see `quant-studio` |
+| `ssg-astro-studio-civictheme` | CivicTheme design system on Astro with Studio editing | `dist` | Studio template |
+| `ssg-docusaurus` | Docusaurus | `build` | |
+| `ssg-eleventy` | Eleventy | `_site` | |
+| `ssg-gatsby` | Gatsby | `public` | |
+| `ssg-hugo` | Hugo | `public` | |
+| `ssg-jekyll` | Jekyll | `_site` | |
+| `ssg-nextjs` | Next.js static export | `out` | Static export only; for server rendering use `app-nextjs` |
+| `ssg-nuxt` | Nuxt static generation | `.output/public` | For server rendering use `app-nuxt` |
+| `ssg-sveltekit` | SvelteKit static adapter | `build` | For server rendering use `app-sveltekit` |
+
+## Static + edge template
+
+| Repository | What it is | Output directory | Declares |
+|---|---|---|---|
+| `ssg-astro-edge-saas` | Orbit: a workspace dashboard with login, roles and saved data; static Astro pages plus edge functions and KV; optional Studio editing | `dist` | `quant/edge-functions.json`, `quant/edge-rules.json`, a KV store `orbit` with a one-time owner access key |
+
+Orbit commits its lock file and runs `npm ci` and `npm test` before the build. Its README explains
+local development with the edge and KV emulator, and how to replace a lost owner key.

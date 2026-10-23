@@ -1,0 +1,12 @@
+{
+  "name": "quantcdn",
+  "description": "Agent skills for the Quant platform (public and gov).",
+  "owner": { "name": "QuantCDN" },
+  "plugins": [
+    {
+      "name": "quant",
+      "source": "./",
+      "description": "Agent skills for the Quant platform (public and gov)."
+    }
+  ]
+}

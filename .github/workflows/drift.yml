@@ -1,0 +1,55 @@
+name: Version drift
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check for drift
+        id: drift
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          scripts/check-drift.sh > drift.txt
+          rc=$?
+          set -e
+          echo "code=$rc" >> "$GITHUB_OUTPUT"
+          if grep -q '^DRIFT ' drift.txt; then
+            echo "has_drift=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_drift=false" >> "$GITHUB_OUTPUT"
+          fi
+          cat drift.txt
+      # Runs whenever any skill drifted, even if another lookup failed (exit 2).
+      - name: Open or update the drift issue
+        if: steps.drift.outputs.has_drift == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title="Skill version drift"
+          { echo "These skills were checked against older versions than the latest release."; echo; echo '```'; grep '^DRIFT ' drift.txt; echo '```'; } > body.md
+          number=$(gh issue list --state open --label drift --json number,title \
+            --jq "[.[] | select(.title == \"$title\")][0].number // empty")
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file body.md
+          else
+            gh label create drift --description "Skill version drift" --color FBCA04 2>/dev/null || true
+            gh issue create --title "$title" --label drift --body-file body.md
+          fi
+      - name: Fail on lookup error
+        if: steps.drift.outputs.code == '2'
+        run: |
+          echo "check-drift.sh could not look up at least one latest version (exit 2)."
+          exit 1
