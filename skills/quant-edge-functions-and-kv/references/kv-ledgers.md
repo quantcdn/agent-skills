@@ -107,7 +107,7 @@ if (!report.ok) console.log(JSON.stringify(report.problems));
 **What it does not prove.** `verifyChain` finds gaps, reordering and broken links in the entries you
 pass. It does not prove that Quant stored them unchanged, and it does not recompute an entry hash
 from its content. A clean result for a partial window says nothing about entries outside it; the
-first entry of the window is not checked against an earlier one. For evidence that an entry is
+first entry of the window is not compared with an earlier one. For evidence that an entry is
 authentic, use `ledgerProof`.
 
 ## Status and proof
