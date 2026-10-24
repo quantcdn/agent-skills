@@ -13,8 +13,8 @@ headers Quant uses, purging, and the crawler. For the platform overview, load `q
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Identify the platform by the dashboard URL only; ask the customer if you do not know it. Checked
-2026-10 against the dashboard API (`/api/v2`), `@quantcdn/quant-cli` 7.0.1, `quantcdn/purge-action`
-v7 and Terraform `quantcdn/quant` v5.14.
+2026-10 against the dashboard API (`/api/v2`), `@quantcdn/quant-cli` 7.0.2, `quantcdn/purge-action`
+v7.1.0 (runs CLI 7.0.1) and Terraform `quantcdn/quant` v5.14.
 
 | | QuantCDN (public) | QuantGov |
 |---|---|---|
@@ -261,5 +261,5 @@ Full field list and API calls: [references/api.md](references/api.md).
   `quant-rules-and-routing`, `quant-edge-functions-and-kv`, `quant-iac`, `quant-search`,
   `quant-cms-integrations`
 
-<!-- checked against npm:@quantcdn/quant-cli 7.0.1 -->
-<!-- checked against gh:quantcdn/purge-action 7.0.0 -->
+<!-- checked against npm:@quantcdn/quant-cli 7.0.2 -->
+<!-- checked against gh:quantcdn/purge-action 7.1.0 -->
