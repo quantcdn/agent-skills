@@ -183,8 +183,8 @@ const proof = await audit.ledgerProof('audit', receipt.key);
 
 **Proof readiness is delayed.** An archive job runs about every 5 minutes on 5-minute periods, so an
 entry reaches the archive about 6 minutes after the append, plus the job run time. The proof stays
-`pending` until the entry is archived and the signed digest of its period exists, which can take up
-to about an hour. `pending` is not a failure.
+`pending` until the entry is archived and the signed digest that covers it exists, usually about
+10 minutes after the append. `pending` is not a failure.
 
 - Do not wait for a proof inside the request that appended (8 second call limit). Save
   `receipt.key` and ask for the proof later: a scheduled function, or the next request.
