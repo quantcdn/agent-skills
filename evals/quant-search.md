@@ -7,7 +7,7 @@ Must include:
 - Custom records: a JSON array in which each record needs `title`, `url` and `content`; optional `summary`, `image`, `categories`, `tags`; pushed with `quant search index --path records.json` (or `POST /search` on the content API with the `Quant-Customer`, `Quant-Project` and `Quant-Token` headers)
 - A static site does not get `categories` or `tags` automatically (Drupal and WordPress send them), so the pushed records must carry them
 - Facets: `categories` and `tags` must be declared as filterable, with `POST /search/facet` and a JSON array of attribute names (or the Facets list in the dashboard Search edit page); then choose them as facets when creating the search page under Search, Create (pick a template)
-- CI: `quantcdn/search-action` (v2) with `operation: index` and the input named `path` (a directory of `*.json` files or one file), not `index-path`
+- CI: `quantcdn/search-action` (v2) with `operation: index` and the input named `path` (one JSON file), not `index-path`
 - Check with `quant search status`, which prints the number of indexed documents
 Must not include:
 - The name of any search engine vendor or product
@@ -20,11 +20,11 @@ Must include:
 - Enable with Search, "Enable AI Search" in the QuantGov dashboard; the project needs a domain (the base URL that is crawled), and the index fills when a crawler with the "AI Search Integration" option runs (or content is pushed to the project, or pages are sent with the AI Search API)
 - Embed: copy the script snippet from the dashboard Search page (use the host in the snippet; it carries your site ID); the script is `widget.js` (floating chat button) or `search-page.js` with a container element and `data-site-id`, `data-container`, `data-theme`, `data-show-ai-answer`, `data-results-limit`
 - Before going live: turn on public access in Settings, and set Allowed domains to the production hosts (an empty list accepts any domain); rate limits can be set
-- search-action v2.0.0 on QuantGov: `endpoint: https://api.quantgov.cloud` with NO `/v1` (its CLI adds `/v1`), because the released action runs CLI 2.0.0; `quant` 7.0.1 itself uses `https://api.quantgov.cloud/v1`
+- search-action v2.1.0 on QuantGov: `endpoint: https://api.quantgov.cloud/v1`, the same value `quant` 7.0.1 uses (v2.0.0 ran CLI 2.0.0 and took it without `/v1`)
 - The extra records from the action go to the keyword search index (`quant search` records), not into the AI Search index
 - Gov difference is behaviour only: QuantGov is IRAP assessed and AI answers use Australian-resident models; the search features themselves are the same
 Must not include:
-- `/v1` on the search-action `endpoint` for gov
+- `https://api.quantgov.cloud` without `/v1` as the search-action v2.1.0 `endpoint`
 - `dash.quantcdn.io` or `api.quantcdn.io`
 - A script host typed from memory instead of the one in the dashboard snippet
 
@@ -55,9 +55,9 @@ Must not include:
 Prompt: I use the search-action README example in my workflow: `operation: index` with `index-path: search/` and the token inline. The job is green but nothing appears in search. Our org is on QuantCDN. Also what filter syntax can I use on a dashboard search page to show only recipes in category Vegan or Vegetarian?
 Platform: public
 Must include:
-- Released search-action v2 takes `path` (a directory of `*.json` files or one file); `index-path` and `unindex-path` in the README are not inputs, so the path is empty and nothing is indexed even though the job passes
-- The token comes from a secret (`${{ secrets.QUANT_TOKEN }}`), and `customer` and `project` are required; pin the action to the commit SHA for v2.0.0 (f84efa8ea7a42ef305751608d6b7dea27d175a7f)
-- A record file that fails to upload prints an `Error:` line and the step can still pass, so read the job log; confirm with `quant search status`
+- Released search-action v2 takes `path` (one JSON file from v2.1.0); `index-path` and `unindex-path` from older README copies are not inputs, so the path is empty and nothing is indexed even though the job passes
+- The token comes from a secret (`${{ secrets.QUANT_TOKEN }}`), and `customer` and `project` are required; pin the action to the commit SHA for v2.1.0 (a714ca5316f148e934dca97caf8c4409e6092970)
+- A `path` the CLI cannot read (a directory or a missing file) prints an error and the step still passes, so read the job log; confirm with `quant search status`
 - Search page filters (Search, Create, Filtering) are `field:value` clauses such as `content_type:"recipe"`; an OR of two clauses is shown as `recipe_category:"Vegetarian" OR recipe_category:"Vegan"` in the docs, and the field must exist on the records; check the results in the search preview
 Must not include:
 - The name of any search engine vendor or product

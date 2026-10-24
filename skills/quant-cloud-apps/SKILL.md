@@ -15,7 +15,8 @@ split, load `quant-platform` first.
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Features are the same. Only the API host changes: `{dashboard}/api/v3`. Checked 2026-10 against the
 public docs, the public OpenAPI spec (API 4.25.0), the `quantcdn-templates` base images and templates,
-`quant-cloud-compose-action` v4.0.0, `quant-cloud-init-action` v4.0.1 and `qc` 0.7.0.
+`quant-cloud-compose-action` v4.0.0, `quant-cloud-environment-action` v4.1.0,
+`quant-cloud-init-action` v4.0.1 and `qc` 0.7.0.
 
 Use a cloud app when the code runs a server or needs a database. Plain build output is a static site
 (`quant-static-sites`). To start from a ready template, see `quant-templates`.
@@ -191,7 +192,9 @@ GitHub Actions flow (full workflow and versions: `quant-ci-github-actions`):
    `quant_application`, `environment_name`, `environment_exists`, `image_suffix_clean`.
 2. Build and push `<stripped_endpoint>/<org>/<app>:<service>-<image_suffix_clean>`.
 3. `quantcdn/quant-cloud-compose-action@v4` with `image_suffix` translates the compose file.
-4. `quantcdn/quant-cloud-environment-action@v4` creates or updates the environment.
+4. `quantcdn/quant-cloud-environment-action@v4` creates or updates the environment. From v4.1.0
+   it keeps the scaling set in the dashboard unless you set `min_capacity` and `max_capacity`.
+   v4.0.0 reset the scaling to one task on every deploy.
 5. `quantcdn/quant-cloud-environment-state-action@v4` with `action: redeploy` for an existing one.
 
 On gov set `base_url: https://dash.quantgov.cloud` (the bare dashboard host) on every Quant Cloud action.
@@ -281,5 +284,5 @@ API calls for all of these: [references/api.md](references/api.md).
 
 <!-- checked against gh:quantcdn/quant-cloud-init-action 4.0.1 -->
 <!-- checked against gh:quantcdn/quant-cloud-compose-action 4.0.0 -->
-<!-- checked against gh:quantcdn/quant-cloud-environment-action 4.0.0 -->
+<!-- checked against gh:quantcdn/quant-cloud-environment-action 4.1.0 -->
 <!-- checked against gh:quantcdn/quant-cloud-environment-state-action 4.0.1 -->

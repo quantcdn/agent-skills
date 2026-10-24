@@ -7,14 +7,14 @@ in a comment: `uses: quantcdn/deploy-action@9bf8cae8497ab6628d4b248db9eb11464f37
 | Action | Latest | Commit SHA | Major tag |
 |---|---|---|---|
 | `quantcdn/deploy-action` | v7.0.1 | `9bf8cae8497ab6628d4b248db9eb11464f37e1e5` | `v7` |
-| `quantcdn/purge-action` | v7.0.0 | `6010adb4bef33827d7f7d1be8b1d955f693568e4` | `v7` |
-| `quantcdn/search-action` | v2.0.0 | `f84efa8ea7a42ef305751608d6b7dea27d175a7f` | none (use the SHA or `v2.0.0`) |
+| `quantcdn/purge-action` | v7.1.0 | `5c2a85f5318917ef12b9099cf101fe6bd75d0d06` | `v7` |
+| `quantcdn/search-action` | v2.1.0 | `a714ca5316f148e934dca97caf8c4409e6092970` | `v2` |
 | `quantcdn/quant-cloud-init-action` | v4.0.1 | `1bc52dca113ea1cb2f3d7dcb0edbc7859d76afaf` | `v4` |
 | `quantcdn/quant-cloud-compose-action` | v4.0.0 | `3a06db471e3364db3e4691fd522b9c37346d0a19` | `v4` |
-| `quantcdn/quant-cloud-environment-action` | v4.0.0 | `936fe16373f3169fa15b61a9117ffa87b3996855` | `v4` |
+| `quantcdn/quant-cloud-environment-action` | v4.1.0 | `165b2448cafaa28735aa80a13f1e9cdf1c2dcc4f` | `v4` |
 | `quantcdn/quant-cloud-environment-state-action` | v4.0.1 | `b1b75af5d772bb295bc067f225a7bb3a952bd7a1` | `v4` |
 | `quantcdn/quant-cloud-environment-sync-action` | v4.0.0 | `aeb054d52e2067ac7eb6694c07df2c4cde262c5f` | `v4` |
-| `quantcdn/quant-cloud-environment-var-action` | v1.0.2 | `ce1ea37c9f7e9169c1c70df35ae3fe6f1111e2c9` | `v1` |
+| `quantcdn/quant-cloud-environment-var-action` | v1.0.3 | `d9b08f58ad3406a01fbb75725a9065e50a30fa99` | `v1` |
 | `quantcdn/quant-cloud-environment-backup-action` | v4.4.2 | `9c46be7346ab2ec78f7dd5e0b0795ce2eff3eca2` | `v4` |
 
 `quantcdn/quant-cloud-ecr-action` is superseded: the init action logs Docker in to the registry.
@@ -56,9 +56,9 @@ Outputs: none. Order of work: rules dry run (when `rules` is set), functions, `d
 Upload failures print `Failed to deploy <file>` and the step still passes. Manifest formats:
 `quant-edge-functions-and-kv`. Unpublish and revision-log behaviour: `quant-static-sites`.
 
-### `quantcdn/purge-action` v7.0.0
+### `quantcdn/purge-action` v7.1.0
 
-Runs `quant` 6.2.0 (`quantcdn/cli:6.2.0`).
+Runs `quant` 7.0.1 (`quantcdn/cli:7.0.1`). v7.0.0 ran 6.2.0. The inputs did not change.
 
 | Input | Required | Default | Notes |
 |---|---|---|---|
@@ -72,21 +72,23 @@ Runs `quant` 6.2.0 (`quantcdn/cli:6.2.0`).
 
 Set exactly one of `url_pattern` and `cache_keys`; the step fails with both or neither. Outputs: none.
 
-### `quantcdn/search-action` v2.0.0
+### `quantcdn/search-action` v2.1.0
 
-Runs `quant` **2.0.0** (`quantcdn/cli:2.0.0`). That CLI adds `/v1` to the endpoint itself.
+Runs `quant` 7.0.1 (`quantcdn/cli:7.0.1`). v2.0.0 ran `quant` 2.0.0, which added `/v1` to the
+endpoint itself. From v2.1.0 the `endpoint` includes `/v1`, like the other content actions.
 
 | Input | Required | Default | Notes |
 |---|---|---|---|
 | `customer` | yes | | |
 | `project` | yes | | |
 | `token` | yes | | Project token |
-| `endpoint` | no | `https://api.quantcdn.io` | **No `/v1`.** Gov: `https://api.quantgov.cloud` |
+| `endpoint` | no | `https://api.quantcdn.io/v1` | Gov: `https://api.quantgov.cloud/v1`. v2.0.0 took the host without `/v1` |
 | `operation` | yes | | `index`, `unindex`, `status` or `clear` |
-| `path` | no | | `index`: a directory of `*.json` record files, or one file. `unindex`: the URL path to remove |
+| `path` | no | | `index`: **one** JSON file (an array of records). `unindex`: the URL path to remove |
 
-Outputs: none. A record file that fails to upload prints an `Error:` line, and the step can still
-pass. Read the log.
+Outputs: none. A directory is not accepted from v2.1.0: `quant` 7.0.1 prints the read error
+(`EISDIR`), then reports success, and the step passes with nothing indexed. Use one step per file.
+Read the log.
 
 ## Quant Cloud actions (container apps)
 
@@ -97,7 +99,7 @@ API Tokens). The token belongs to one platform. `base_url` selects the platform.
 |---|---|---|---|
 | init, compose, environment, state, sync | `https://dashboard.quantcdn.io` | yes | yes (removed before use) |
 | backup v4.4.2 | `https://dashboard.quantcdn.io/api/v3` | yes | yes (removed before use) |
-| environment-var v1.0.2 | `https://dashboard.quantcdn.io` | **yes, and only this** | **no**: v1.0.2 does not strip it, so the path doubles (`/api/v3/api/v3/...`, "route could not be found"). On gov set `https://dash.quantgov.cloud` |
+| environment-var v1.0.3 | `https://dashboard.quantcdn.io` | yes | yes (removed before use). v1.0.2 and earlier do not remove it, so the path doubles (`/api/v3/api/v3/...`) |
 
 The bare dashboard host (`https://dashboard.quantcdn.io` or `https://dash.quantgov.cloud`) works
 for every Quant Cloud action.
@@ -155,9 +157,9 @@ as v1.2.0.
 Output: `translated_compose` (JSON for the environment action). Translation warnings appear as
 workflow warnings; an invalid file fails the step.
 
-### `quantcdn/quant-cloud-environment-action` v4.0.0
+### `quantcdn/quant-cloud-environment-action` v4.1.0
 
-Creates, updates or deletes an environment. Same commit as v1.5.0.
+Creates, updates or deletes an environment.
 
 | Input | Required | Default | Notes |
 |---|---|---|---|
@@ -169,15 +171,16 @@ Creates, updates or deletes an environment. Same commit as v1.5.0.
 | `from_environment` | no | | Clone this environment's configuration. Used only when the environment is created |
 | `compose_spec` | no | | `translated_compose`. Required for update; create needs it or `from_environment` |
 | `image_suffix` | no | | Image tag suffix applied by the platform |
+| `min_capacity` | no | none | Minimum tasks. Sent only when set |
+| `max_capacity` | no | none | Maximum tasks. Sent only when set |
 | `operation` | no | `create` | `create` (updates the environment if it exists), `update` (fails if it does not exist), `delete` (passes if it does not exist) |
 
 Output: `environment_name`.
 
-**Scaling:** every create and update also sends `minCapacity` and `maxCapacity`, default `1`.
-This replaces the minimum and maximum tasks set in the dashboard. To keep your values, pass
-`min_capacity` and `max_capacity` (the action reads them, but `action.yml` does not declare them,
-so GitHub prints an "Unexpected input" warning). Or, for an environment that exists and whose
-compose file did not change, skip this step and run only the state action.
+**Scaling:** from v4.1.0 the action sends `min_capacity` and `max_capacity` only when you set
+them. If you leave them out, an update keeps the scaling set in the dashboard, and a new
+environment gets the platform default. v4.0.0 and earlier sent `1` for each on every create and
+update, which reset the scaling to 1/1. On those versions, pass both inputs or pin v4.1.0.
 
 ### `quantcdn/quant-cloud-environment-state-action` v4.0.1
 
@@ -215,7 +218,7 @@ application has no database), the step prints a warning, sets `skipped` to `true
 Check `skipped`. The action cannot sync into `production`. Syncs that read from production need
 the `trigger_prod_sync` permission.
 
-### `quantcdn/quant-cloud-environment-var-action` v1.0.2
+### `quantcdn/quant-cloud-environment-var-action` v1.0.3
 
 Manages **environment variables**. It does not create secrets: values it sets are plain variables
 that anyone with access to the environment can read. Keep secrets in the dashboard
@@ -227,7 +230,7 @@ that anyone with access to the environment can read. Keep secrets in the dashboa
 | `organization` | yes | | |
 | `app_name` | yes | | |
 | `environment_name` | yes | | |
-| `base_url` | no | `https://dashboard.quantcdn.io` | Bare host only (gov `https://dash.quantgov.cloud`); a value ending `/api/v3` fails |
+| `base_url` | no | `https://dashboard.quantcdn.io` | Gov `https://dash.quantgov.cloud`. A trailing `/api/v3` is removed (v1.0.2 failed on it) |
 | `operation` | no | `list` | `list`, `set`, `clear` (delete every variable), `delete` |
 | `replace` | no | `false` | `set` only: replace the whole list, removing variables not in the input |
 | `env_file` | no | | `set`: path to a `.env` file |
