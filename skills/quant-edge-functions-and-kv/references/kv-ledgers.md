@@ -8,7 +8,7 @@ table and error codes: [kv-api.md](kv-api.md). Source of truth: https://docs.qua
 
 Declare it on the store's **Ledgers** tab: name, collection pattern, `chains` 1 to 64,
 `retentionDays`, `lockMode` `governance` or `compliance`, and optional `personalFields` with a
-`subjectField`.
+`subjectField` ([Subject field](#subject-field)).
 
 - The collection must be empty. A collection name is at most 512 UTF-8 bytes.
 - The ledger is `PENDING` for about 75 seconds, then `ACTIVE`. An append before that throws
@@ -16,6 +16,57 @@ Declare it on the store's **Ledgers** tab: name, collection pattern, `chains` 1 
 - `chains`, retention and lock mode can only be raised.
 - A store with a `PENDING` or `ACTIVE` ledger cannot be deleted (`LEDGER_PRESENT`), even with
   `force=true`.
+
+## Subject field
+
+`subjectField` names the top-level field that holds the data subject id. A ledger with
+`subjectField` takes two options at declare: `subjectMode` and `subjectCase`. Both are allowed
+only with `subjectField`. Both are immutable: a raise that names another value fails with
+`LEDGER_IMMUTABLE`. A different choice needs a new ledger. In Terraform, a change is refused at
+plan time.
+
+| `subjectMode` | Stored in the subject field | Trade-off |
+|---|---|---|
+| `pseudonym` (default) | A token: `qsub1_` plus 26 characters. The id as appended is sealed in `$subject` and shows only to a live, decrypted read | The token cannot be linked to the id without Quant's keyed lookup, so a shred removes the id from every entry |
+| `clear` | The value as appended. The token is in `$subjectTag` | The id stays readable in the entry, the archive and the export, and a shred cannot remove it from them |
+
+If you must be able to erase a subject, use `pseudonym`. Use `clear` only when the id is not
+personal data, for example an opaque internal id.
+
+`subjectCase` decides how the server compares ids:
+
+- `exact` (default) keeps case.
+- `fold` lower-cases the id.
+
+Use `fold` for emails and usernames, because `Alice@Example.com` and `alice@example.com` are one
+person. `exact` never merges two ids, but it can split one person into two subjects, and then an
+erasure is incomplete.
+
+The server canonicalises the id; the client sends the value as it has it. The rules, in order:
+
+1. The id is a string or a safe integer. `123` and `"123"` are one subject. Any other type is `VALIDATION`.
+2. Trim leading and trailing Unicode `White_Space`.
+3. Normalise to NFC (not NFKC).
+4. With `fold`, apply `toLowerCase()`, then NFC again.
+5. Reject an empty id, control characters U+0000 to U+001F and U+007F to U+009F, lone surrogates,
+   and more than 256 UTF-8 bytes. The error message never contains the id.
+
+| Input | Result |
+|---|---|
+| `" Alice@Example.COM "` | `exact`: `"Alice@Example.COM"`; `fold`: `"alice@example.com"` |
+| `"é"` | `"é"` |
+| `"\uD800"` | `VALIDATION` |
+| `42` | `"42"` |
+| `4.5` | `VALIDATION` |
+
+- `subjectField` can be declared with `personalFields: []`. The ledger is then pseudonymised and
+  can be shredded.
+- `$subject` and `$subjectTag` are reserved. An append that has one of them fails with `VALIDATION`,
+  like `$event`.
+
+**Caution.** Do not put the subject id in another field of the entry. Do not index the subject field
+of a pseudonym ledger with a broad collection pattern: the server refuses such an index. Putting the id
+in another field defeats the pseudonym.
 
 ## Append
 
@@ -27,6 +78,7 @@ const receipt = await audit.append(`audit:${tenantId}`, {
   requestId,
 }, { idempotencyKey: `${requestId}-audit` });
 // { key, id, shard, seq, at, hash, prevHash, ledger, source?, replayed? }
+// shard: string of two digits ('03'). at: number, epoch milliseconds.
 ```
 
 - `value` must be a plain JSON object of at most 350,000 bytes. A top-level `at` field is refused
@@ -37,6 +89,8 @@ const receipt = await audit.append(`audit:${tenantId}`, {
 - Each entry records `source`: an edge function's entries name the function.
 - Personal fields are encrypted per subject and can be shredded for erasure requests; the hash
   chain still verifies.
+- With a `subjectField`, the entry also carries the token (pseudonym mode), and a shred works
+  without personal fields.
 - `LEDGER_FORKED` and `LEDGER_DROPPED` are never retryable: the store refuses appends.
 
 ## Retry after a timeout
@@ -88,7 +142,7 @@ key throws `LEDGER_IMMUTABLE`). Design for one write to succeed while the other 
 ## Chain order
 
 - `seq` counts from 1 **within one shard**. `prevHash` is the hash of the previous entry in the
-  same shard (`null` for the first).
+  same shard. For `seq` 1 it is the genesis hash of the shard, never `null`.
 - A ledger with `chains: 1` has one shard, so `seq` is a total order. With more chains there is no
   total order: order across shards by `at`, then `shard`, then `id`.
 - There is no read by `seq`. Read entries with `list` (below) or `getEntry(key)`.
@@ -109,7 +163,43 @@ const page = await audit.list({
   offset.
 - They cannot be combined with `where`, `pattern`, `startsWith`, `after`, `before` or
   `type: 'encrypted'`.
-- Each item holds a `ledger` object with `shard`, `seq`, `hash` and `prevHash`.
+- Each item holds a `ledger` object with `shard`, `seq`, `hash` and `prevHash`. When the ledger has
+  a `subjectField`, it also holds `subject`: `"pseudonym"` or `"clear"`.
+
+### Read a subject's entries
+
+**Warning.** Never put a subject id in a URL or a query string. Request paths and query strings
+reach access logs. The one exception is the edge `list({ index, equals })` call: API Gateway logs the
+request path only, so that query string is not logged.
+
+- In an edge function, `list({ index, equals: { [subjectField]: id } })` works as before. Do not use
+  `list({ collection, where })` on a ledger collection: the server refuses it. The server rewrites the id. A shredded or unknown subject gives an empty page.
+- The edge `list()` has no `subjectTag` option and refuses it. Only the HTTP API lists the entries of
+  one token, with `subject_tag` (public API; the management API calls it `subjectTag`). The value must
+  match `^qsub1_[0-7][0-9A-HJKMNP-TV-Z]{25}$`, else `VALIDATION`.
+
+| `personal` | Pseudonym ledger | Clear ledger |
+|---|---|---|
+| `decrypted` | The subject field holds the opened id (live) or `{"$shredded": true}` | The subject field as stored; `$subjectTag` shown |
+| `sealed` | The subject field holds the token | The subject field as stored; `$subjectTag` shown |
+
+On the platform API, query by subject with `POST .../ledgers/{name}/subject-entries` and the id in
+the body:
+
+```json
+{ "subjectId": "u-17", "collection": "logins", "since": "2026-01-01T00:00:00Z", "limit": 100 }
+```
+
+- Fields: `subjectId` (required), `collection`, `since`, `until`, `limit` (1 to 1000, default 100),
+  `nextToken`, `personal`. An email is personal data: send it in the body only.
+- The public API defaults `personal` to `sealed`. `decrypted` needs the `ledger_reveal` permission.
+- The portal refuses `GET .../keys` with `equals` or `where` on a subject field. The message is
+  `Query a ledger subject with POST …/ledgers/{ledger}/subject-entries`.
+- The answer has `subjectState` `live`, or `shredded` with `shreds`. An id that was never seen gives
+  `404 SUBJECT_NOT_FOUND`.
+- A plain index on the subject field alone makes the query fast. Without it, the call scans in
+  bounded steps and can return `complete: false` with a `nextToken`. Call again while the answer has a `nextToken`, whatever `complete` says.
+- The public `GET .../keys` parameter for a token is `subject_tag`.
 
 ## verifyChain
 
@@ -152,7 +242,9 @@ authentic, use `ledgerProof`.
 | `VALIDATION` | 400 | No | Value not a plain object, a top-level `at`, a bad collection, or a key reused for a different entry, another writer or an erased subject |
 | `LIMIT_EXCEEDED` | 400 | No | The value is larger than 350,000 bytes |
 | `LEDGER_SUBJECT_REQUIRED` | 400 | No | A personal field is present but the `subjectField` is empty |
-| `LEDGER_IMMUTABLE` | 400 | No | `set`, `delete`, `increment`, `ttl` or `atomic()` on a ledger key, or an append to a dropped ledger |
+| `LEDGER_IMMUTABLE` | 400 | No | `set`, `delete`, `increment`, `ttl` or `atomic()` on a ledger key, or a raise that changes `subjectMode` or `subjectCase` |
+| `LEDGER_DROPPED` | 409 | No | An append to a dropped ledger |
+| `LEDGER_FORMAT_RETIRED` | 409 | No | The ledger has a subject field and no subject mode (an older staging format). Append and personal reads fail; verify, proof, status, archive and drop still work. Declare a new ledger |
 | `LEDGER_FORKED` | 409 | Never | The store table no longer matches its archive. Reads, proofs and exports still work. Contact Quant support |
 | `LEDGER_NOT_FOUND` | 404 | No | No ledger with this name (status, proof) |
 | `LEDGER_RETAINED` | 409 | No | Drop refused: retention runs until `retainUntil`, or entries are not archived yet |
@@ -175,7 +267,8 @@ const status = await audit.ledgerStatus('audit');
 // { name, state, collection, chains, headSeq, archivedSeq, lag, shards: [...], hasMoreShards, activeAfter?, retainUntil?, lastVerify? }
 
 const proof = await audit.ledgerProof('audit', receipt.key);
-// { status: 'pending' } until the entry is archived, then { status: 'archived', hash, period, archiveKey, ... }
+// { status: 'pending' } until the entry is archived, then { status: 'archived', entry, hash, period, archiveKey, leafIndex, treeSize, merkleRoot, auditPath, digest, digestKey, signature, keyId, digestSignedAt?, source?, anchor?, anchorUnavailable? }
+// digestSignedAt: only when the digest has signedAt. exactly one of: anchor (an anchor covers the digest), neither field (no anchor covers it yet), anchorUnavailable: true (the anchor lookup failed).
 ```
 
 - Both calls are read-only.
@@ -227,5 +320,30 @@ Expected: the second append replays the first receipt, the ledger is `ACTIVE`, t
 `archived` (or `pending` within the first hour), and `verifyChain` reports `ok: true`. A
 `pending` result is a retry later, not a failure.
 
-Verification of archives outside Quant, anchoring, offline proofs and erasure:
-https://docs.quantcdn.io/compute/kv-ledgers/
+## Erase a subject
+
+**Warning.** A shred cannot be undone. Run the preview first. Send the id in the request body, never
+in a URL.
+
+1. Preview: `POST .../ledgers/{name}/subject-preview` with `{ "subjectId": "u-17" }`. The answer has
+   `subjectRef`, `refKeyVersion`, `keyState` (`live` or `shredded`) and the counts. It does not
+   echo `subjectId`.
+2. Shred: `POST .../ledgers/{name}/shred` with `subjectId`, `reason`, `authority` and `requestedBy`.
+   The `200` carries `subjectRef`, `refKeyVersion`, `shredId` and `receipt`. The `202`
+   (`status: "in_progress"`) carries `ledger`, `subjectRef` and `entries` (the receipts so far): no `shredId` and no
+   receipt. Neither carries `subjectId`. After a `202`, send the same shred request again to finish
+   it; the shred is idempotent per subject. Keep `subjectRef` and `shredId` from the `200`.
+3. After the shred, a decrypted read of the subject's entries shows `{"$shredded": true}` in the
+   subject field.
+
+### Prove an erasure to an auditor
+
+1. Verify the receipt signature: `verify.mjs verify-signed`, with the public key from
+   `GET .../ledgers/public-key`. The verifier accepts receipts `v: 1` and `v: 2`.
+2. Read `subjectRef` and `refKeyVersion` from the receipt.
+3. An authorised caller sends the id to `subject-preview` (with `refKeyVersion` if the key was
+   rotated) and gets the same `subjectRef` with `keyState: "shredded"`.
+4. The auditor compares the two `subjectRef` values.
+
+The receipt lists the shred entries, not the subject's own entries, because it cannot name them
+without the link. `subjectRef` is a pseudonym, not a confidentiality control: do not publish it.

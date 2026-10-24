@@ -11,12 +11,12 @@ the edge function documentation.
 
 | | Format 1 | Format 2 |
 |---|---|---|
-| Created by | The platform API and Terraform (no format option), or the dashboard when you choose format 1 | The dashboard (default) and template setup |
+| Created by | The platform API and Terraform by default (no `format`), or the dashboard when you choose format 1 | The dashboard (default), template setup, or the API and Terraform with `format: 2` |
 | `get`/`set`/`delete` failure | Returns `null` / `false` | Throws `KVError` |
 | Listing | Bounded scan, eventually consistent | Collections in id order, strongly consistent reads |
 | Conditional writes, `atomic()`, `reverse`, indexes, ledgers | No (`REQUIRES_FORMAT_2`) | Yes |
 
-Upgrade a format 1 store on the store page (Format & upgrade tab): writes pause for at least 40
+Upgrade a format 1 store on the store page (Format & upgrade tab) or with the [upgrade route](#upgrade-a-format-1-store): writes pause for at least 40
 seconds plus the copy time; reads continue. Limit 100,000 items and 1 GiB. Rollback is possible for 14
 days.
 
@@ -248,6 +248,7 @@ Fields: `code`, `message`, `retryable` (always read it; the table shows the usua
 | `LEDGER_IMMUTABLE` | No | A ledger entry cannot be changed or deleted |
 | `LEDGER_NOT_READY` | Yes | The ledger is declared but not active yet; `activeAfter` gives the time |
 | `LEDGER_NOT_FOUND` | No | No ledger with this name |
+| `LEDGER_FORMAT_RETIRED` | No | The ledger uses a retired subject format. Declare a new ledger ([kv-ledgers.md](kv-ledgers.md#errors-for-ledgers)) |
 | `LEDGER_RETAINED` | No | Under retention until `retainUntil` |
 | `LEDGER_FORKED`, `LEDGER_DROPPED` | Never | The chain has forked, or the ledger was dropped. The store refuses appends |
 | `LEDGER_COLLECTION_NOT_EMPTY`, `LEDGER_INDEX_KIND`, `LEDGER_SUBJECT_REQUIRED`, `LEDGER_PRESENT`, `LEDGER_DIRECTION`, `SUBJECT_NOT_FOUND`, `STORE_NAME_RETAINED`, `VERIFICATION_NOT_FOUND`, `SHRED_NOT_FOUND`, `UPGRADE_CONFLICT`, `EXPORT_IN_PROGRESS`, `EXPORT_NOT_FOUND` | No | Ledger and store management conditions, passed through unchanged |
@@ -260,7 +261,7 @@ Base: `{dashboard}/api/v2/organizations/{organization}/projects/{project}`, with
 
 | Call | Does |
 |---|---|
-| `GET /kv`, `POST /kv` (`{ "name": ... }`) | List or create stores. The new store ID is `<organization>-<project>-<name>`, **format 1** |
+| `GET /kv`, `POST /kv` (`{ "name": ..., "format": 2 }`) | List or create stores. The new store ID is `<organization>-<project>-<name>`. **Format 1 unless you send `"format": 2`** |
 | `GET /kv/{store_id}`, `DELETE /kv/{store_id}[?force=true]` | Read or delete a store. Without `force`, a store with keys is refused. A store with a `PENDING` or `ACTIVE` ledger is refused even with `force` (`LEDGER_PRESENT`) |
 | `POST /kv/{store_id}/link` (`{ "project_id": <id> }`) | Share the store with another project |
 | `DELETE /kv/{store_id}/link` | Remove a linked store from this project (403 for the project that owns the store) |
@@ -269,20 +270,111 @@ Base: `{dashboard}/api/v2/organizations/{organization}/projects/{project}`, with
 | `GET`, `PUT`, `DELETE /kv/{store_id}/items/{key}` | Read, update or delete an item |
 | `DELETE /kv/{store_id}/items?prefix=&older_than=` | Delete many items |
 
-This API has no format 2 features (versions, conditional writes, indexes, ledgers, upgrades,
-exports). Use the dashboard store page and edge functions for those today.
+These item routes are the original store API. The format 2 features (versions, conditional writes,
+indexes, ledgers, upgrades, exports) are the routes below.
 
-## TODO: KV v2 REST API and SDKs (not available yet)
+## KV v2 REST API (format 2 stores, ledgers, upgrade, export)
 
-<!-- TODO(W5/W6): replace this section when the public KV v2 routes ship in the platform API spec. -->
+<!-- Public API specification 4.28.0. Verify each VERIFY-ON-PROD item on production before you rely on this section. -->
 
-Quant is building a public REST API and SDKs for format 2 stores. **None of it exists yet.** Do not
-guess route names or SDK methods; use the dashboard and edge functions until the API specification
-lists them. Planned scope:
+Same base and token as above. Every route is under `/kv/{store_id}`. Token scopes:
 
-- A `format` option when you create a store through the API and Terraform.
-- Ledger status, entry proofs, the archive public key, archive downloads and verification reports,
-  for checks outside Quant.
-- Cursor listing with the query options above, entries with versions, conditional writes and `ttl`.
-- Index, upgrade and export management.
-- Generated SDKs for the new routes.
+| Scope | Allows |
+|---|---|
+| `kv:read`, `kv:write` | Stores, entries, keys, indexes, upgrade, export, usage |
+| `kv:ledger:read` | Ledger list, status, proof, verify, archive, public key; ledger rows in lists and exports |
+| `kv:ledger:append` | `POST /append` |
+| `kv:ledger:admin` | Declare, raise and drop a ledger. Must be given explicitly: a full-access token, or a token without a scope list, cannot use it |
+| `kv:ledger:erase` | Subject preview and shred. Explicit, like `kv:ledger:admin` |
+
+Your role also needs the matching permission (for example `ledger_read`, `ledger_append`). Errors are
+JSON with `code`, `message` and `retryable` (codes as in [Errors](#errors), plus `SCOPE_REQUIRED`,
+`PERMISSION_DENIED` and `RATE_LIMITED`). Admin operations (index create, drop and resume; upgrade;
+export; ledger declare, raise and drop) share a limit of 10 requests per minute per project: on
+`429 RATE_LIMITED`, wait `Retry-After` seconds.
+
+### Create a format 2 store
+
+<!-- VERIFY-ON-PROD: POST /kv accepts "format": 2 and creates a format 2 store; omitting it creates format 1. -->
+
+```bash
+BASE=https://dashboard.quantcdn.io/api/v2/organizations/$ORG/projects/$PROJECT   # gov: dash.quantgov.cloud
+curl -s -X POST "$BASE/kv" -H "Authorization: Bearer $QUANT_API_TOKEN" \
+  -H 'Content-Type: application/json' -d '{"name": "audit", "format": 2}'
+```
+
+`format` is `1` (the default when you omit it) or `2`. It is fixed at create; to change an existing
+store, use the upgrade route. Terraform: `quant_kv_store` with `format = 2` (see `quant-iac`).
+
+### Upgrade a format 1 store
+
+<!-- VERIFY-ON-PROD: POST /kv/{store_id}/upgrade actions start (with dryRun), rollback, finalize and resume; GET shows the phase. -->
+
+| Call | Does |
+|---|---|
+| `GET /upgrade` | The store format (1 or 2), state (`active`, or `migrating` while writes are frozen) and the latest upgrade (`phase`, `total`, `copied`, `invalidKeys`, `oversizeKeys`, `retainUntil`) |
+| `POST /upgrade` `{"action": "start", "dryRun": true}` | Preflight only: check every key, stop at phase `checked`, change nothing |
+| `POST /upgrade` `{"action": "start"}` | Preflight, copy to format 2 and switch. Writes return `503 STORE_MIGRATING` with `Retry-After` for about 40 seconds plus the copy time; reads continue |
+| `POST /upgrade` `{"action": "rollback"}` | Copy back to format 1 after the switch. Refused while the store has a ledger (`LEDGER_PRESENT`) or an export runs |
+| `POST /upgrade` `{"action": "finalize"}` | After `retainUntil` (14 days after the switch): delete the format 1 copy. No rollback after this |
+| `POST /upgrade` `{"action": "resume"}` | Queue the current step again when `phase` has not changed for more than 960 seconds |
+
+Limits: 100,000 items and 1 GiB. Poll `GET /upgrade` until the phase is final. On `503 UNAVAILABLE`
+after `start`, `rollback` or `finalize`, read `GET /upgrade` before you send anything again.
+
+### Entries, queries and indexes
+
+| Call | Does |
+|---|---|
+| `GET`, `PUT`, `DELETE /items/{key}/entry` | Read with `version`; write with `value`, `ttl`, `secret`, `ifAbsent` (201) or `ifVersion`; delete with `?if_version=`. A failed condition is `409 CONFLICT` with `reason` and `currentVersion` |
+| `POST /items/{key}/increment` `{"amount", "ttl"}` | Atomic add. Not idempotent: do not retry a `503` automatically |
+| `POST /batch-get` `{"keys": [...]}` | 1 to 100 keys, input order, `null` for missing |
+| `POST /transact` `{"operations": [...], "idempotencyKey"}` | 1 to 25 operations (`check`, `set`, `delete`, `increment`), all or none (format 2) |
+| `GET /keys` | Cursor list: `collection`, `prefix`, `pattern`, `where`, `index` + `equals`, `starts_with`, `after`, `before`, `reverse`, `since`/`until`, `subject_tag` (ledger collections: the entries of one subject token), `type`, `include_values`, `limit` (1 to 1000), `cursor`. Answer: `data`, `next_cursor`, `has_more`, `page_end`. Follow `next_cursor` while `has_more` is true, also on short pages. `equals` or `where` on the subject field of a ledger is `VALIDATION`: use `POST /ledgers/{name}/subject-entries` |
+| `GET`, `POST /indexes`; `GET`, `DELETE /indexes/{name}`; `POST /indexes/{name}/resume` | Declare (`name`, `collection`, `fields`, `sortBy`, `unique`, `count`), poll until `ACTIVE`, drop |
+| `GET /indexes/{name}/lookup?equals=`, `GET /indexes/{name}/count?equals=` | Unique lookup and live count |
+
+Secret values are write-only through the API (`[ENCRYPTED]`); read them in an edge function. A PUT,
+DELETE or increment that times out is `503 UNAVAILABLE` with `retryable: false`: read the key before
+you write again.
+
+### Ledgers
+
+| Call | Does |
+|---|---|
+| `GET /ledgers`; `GET /ledgers/{name}` | List ledgers with a summary; one definition with `retainUntil` and `lastVerify` |
+| `POST /ledgers` | Declare: `name`, `collection`, `chains`, `retentionDays`, `lockMode`, optional `personalFields`, `subjectField`, `subjectMode`, `subjectCase`, `anchor` (202, `PENDING`). `subjectMode` and `subjectCase` need `subjectField` and are immutable ([kv-ledgers.md](kv-ledgers.md#subject-field)) |
+| `PATCH /ledgers/{name}`; `DELETE /ledgers/{name}` | Raise `chains`, `retentionDays` or `lockMode`; drop (only after retention, else `409 LEDGER_RETAINED`) |
+| `POST /append` `{"collection", "value", "idempotencyKey"}` | Append (201, receipt). Same idempotency rules as the edge ([kv-ledgers.md](kv-ledgers.md#retry-after-a-timeout)). A `503` is retryable only when you sent `idempotencyKey`; without it, list the collection with `since` before you append again |
+| `GET /ledgers/{name}/status` | Chain instances with head and archived `seq`, archive lag, digest, anchor and verify state |
+| `GET /ledgers/{name}/proof?key=<collection:id>` | Inclusion proof: `pending`, then `archived` with the entry, hash, Merkle path, signed digest and signature |
+| `POST /ledgers/{name}/verify` `{"collection", "since", "until", "cursor"}` | Check the chain against the archive and signed digests. At most 10,000 entries per call and 6 calls per minute; continue with `next_cursor`. A finished run has a signed report: `GET /ledgers/{name}/verifications/{id}/report` |
+| `GET /ledgers/public-key` | The public key (`publicKeyPem`) that checks digests, reports and shred receipts |
+| `GET /ledgers/{name}/archive` | Download links for the archive (see below) |
+| `POST /ledgers/{name}/subject-entries` `{subjectId, collection?, since?, until?, limit?, nextToken?, personal?}` | The entries of one subject. Read access (token scope `kv:ledger:read`; allowed on a read-only store). The id stays in the body; the answer does not repeat it |
+| `POST /ledgers/{name}/subject-preview`, `POST /ledgers/{name}/shred`, `GET /ledgers/{name}/shreds[...]` | Erasure of one data subject's personal fields (cannot be undone) and its signed receipts. The answers carry `subjectRef` and `refKeyVersion`, not `subjectId`. The older `.../subjects/{subjectId}` paths are removed ([kv-ledgers.md](kv-ledgers.md#erase-a-subject)) |
+
+### Download the archive and verify offline
+
+<!-- VERIFY-ON-PROD: GET /kv/{store_id}/ledgers/{name}/archive returns presigned links, 100 objects per page, digests on the first page. -->
+
+```bash
+curl -s "$BASE/kv/$STORE/ledgers/audit/archive" -H "Authorization: Bearer $QUANT_API_TOKEN" > page1.json
+# page1.json: objects[], digests[] and timestamps[] (first page), next_cursor, next_digest_cursor, digestsTruncated
+curl -s "$BASE/kv/$STORE/ledgers/public-key" -H "Authorization: Bearer $QUANT_API_TOKEN" |
+  jq -r .publicKeyPem > key.pem
+```
+
+- Each link is valid for up to 1 hour. Download at once; call again for fresh links.
+- Up to 100 archive objects per page: pass `next_cursor` as `cursor`. When `digestsTruncated` is true,
+  pass `next_digest_cursor` as `digest_cursor`. Send one of the two, not both.
+- Save every file under its key path, then run the offline verifier
+  (`node verify.mjs --dir ./archive --store <org>/<store> --public-key key.pem`). The verifier and
+  its exit codes: https://docs.quantcdn.io/compute/kv-ledgers/
+
+### Export, usage
+
+| Call | Does |
+|---|---|
+| `POST /export`; `GET /export`; `POST /export/resume` | Export the whole store to gzip JSON Lines (one at a time, up to 1 GiB). `GET` shows the phase and, when `done`, download links valid for 1 hour. With a ledger in the store, exports also need `kv:ledger:read` |
+| `GET /usage` | Read and write units per day for 30 days, size and a cost estimate |

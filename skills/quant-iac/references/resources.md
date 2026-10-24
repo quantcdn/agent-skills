@@ -42,7 +42,9 @@ Behaviour and field meaning: `quant-rules-and-routing`.
 
 | Terraform | Pulumi class | Import ID |
 |---|---|---|
-| `quant_kv_store` | `KvStore` | `project/store_id` (a rename replaces the store) |
+| `quant_kv_store` | `KvStore` | `project/store_id` (a rename replaces the store). `format` `1` (default) or `2`, set at create only: a change is a plan error, not a replacement; upgrade with the API, then set `format = 2` |
+| `quant_kv_index` | `KvIndex` | `project/store_id/name` (format 2 store; create waits for `ACTIVE`) |
+| `quant_kv_ledger` | `KvLedger` | `project/store_id/name` (format 2 store; `chains`, `retention_days`, `lock_mode` can only go up; `subject_mode` (`pseudonym` or `clear`) and `subject_case` (`exact` or `fold`) are Optional and Computed, need `subject_field`, and a change is refused at plan time because they are immutable) |
 | `quant_kv_item` | `KvItem` | `project/store_id/key` (`secret = true` for secrets; the value is still in state) |
 
 ## Quant Cloud

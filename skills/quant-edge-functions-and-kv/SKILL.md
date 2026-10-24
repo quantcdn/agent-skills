@@ -222,8 +222,9 @@ GitHub Actions (gov values shown; public: `https://api.quantcdn.io/v1` and
 Create a store in the dashboard (Compute, K/V Stores), the platform API, Terraform
 (`quant_kv_store`) or template setup. Format 2 adds indexes, conditional writes, transactions
 and ledgers. The dashboard (default) and template setup create format 2 stores. The platform API
-and Terraform have no format option and create format 1 stores. Upgrade a format 1 store on the
-store page, **Format & upgrade** tab.
+and Terraform create format 1 unless you send `"format": 2` (Terraform `format = 2`). Upgrade a
+format 1 store on the store page, **Format & upgrade** tab, or with the upgrade API. Ledger proofs,
+verification and archive downloads are also in the API ([references/kv-api.md](references/kv-api.md#kv-v2-rest-api-format-2-stores-ledgers-upgrade-export)).
 
 - `kvStore.open()` and every store-ID-first method take the **store ID**, not the display name.
   The dashboard shows it. Stores that the dashboard and templates create use

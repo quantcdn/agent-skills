@@ -118,7 +118,7 @@ Terraform name, Pulumi class (`quant.<Class>`), and every import ID: [references
 | CDN project | `quant_project`, `quant_domain`, `quant_header` (project-wide custom headers), data sources `quant_project` (can return the write token) and `quant_projects` |
 | Crawler | `quant_crawler`, `quant_crawler_schedule` |
 | Rules | `quant_rule_redirect`, `quant_rule_proxy`, `quant_rule_headers`, `quant_rule_auth` (basic auth), `quant_rule_custom_response`, `quant_rule_serve_static`, `quant_rule_function`, `quant_rule_content_filter`, `quant_rule_bot_challenge` |
-| KV | `quant_kv_store`, `quant_kv_item` |
+| KV | `quant_kv_store` (`format`), `quant_kv_item`, `quant_kv_index`, `quant_kv_ledger`; data sources `quant_kv_ledger`, `quant_kv_ledger_public_key` |
 | Quant Cloud | `quant_application`, `quant_environment`, `quant_volume`, `quant_cron_job` |
 | AI | `quant_ai_agent`, `quant_ai_agent_overlay`, `quant_ai_custom_tool`, `quant_ai_governance`, `quant_ai_skill`, `quant_ai_vector_collection`, `quant_ai_vector_document`, `quant_slack_bot`. Arguments and models: `quant-ai` |
 
