@@ -11,8 +11,8 @@ skill covers only the `quant` command.
 
 ## Applies to
 
-Both platforms: QuantCDN (public) and QuantGov (gov). `@quantcdn/quant-cli` 7.0.1, Node.js 20 or
-later. Checked against the 7.0.1 source and the `quantcdn/cli:7.0.1` image, 2026-10.
+Both platforms: QuantCDN (public) and QuantGov (gov). `@quantcdn/quant-cli` 7.0.2, Node.js 20 or
+later. Checked against the 7.0.2 source and the `quantcdn/cli:7.0.2` image, 2026-10.
 
 `quant` is the **content** CLI. It talks to the content API with a **project token**. It does not
 manage Quant Cloud applications or environments. Use `qc` (skill `qc-cli`) for those.
@@ -21,7 +21,7 @@ manage Quant Cloud applications or environments. Use `qc` (skill `qc-cli`) for t
 
 ```bash
 npm install -g @quantcdn/quant-cli
-quant --version            # 7.0.1
+quant --version            # 7.0.2
 ```
 
 Docker, for a pipeline without Node.js. The image runs `quant` as its entrypoint and has no working
@@ -30,7 +30,7 @@ directory, so mount your project and set `-w`:
 ```bash
 docker run --rm -v "$PWD":/site -w /site \
   -e QUANT_CLIENT_ID -e QUANT_PROJECT -e QUANT_TOKEN -e QUANT_ENDPOINT \
-  quantcdn/cli:7.0.1 deploy dist
+  quantcdn/cli:7.0.2 deploy dist
 ```
 
 Pin the image tag to the CLI version you tested.
@@ -66,7 +66,8 @@ Highest first:
 - The CLI reads `quant.json` from the **current directory only**. `quant init` also saves a copy
   under `~/.quant/`, which the CLI does not read back.
 - `quant.json` holds the project token in plain text. Add it to `.gitignore`. In CI, use
-  environment variables.
+  environment variables. `quant deploy` never uploads `quant.json` or a file whose name contains
+  it (backup and editor copies). Versions before 7.0.2 could upload such copies: upgrade.
 - `quant.json` also stores `enableIndexHtml` after the first deploy, with or without
   `--enable-index-html` (`false` when the flag is absent). You cannot change it later; the CLI
   refuses a conflicting value.
@@ -224,4 +225,4 @@ The rules file format and the rule model are in `quant-rules-and-routing`; see
 - Related skills: `quant-platform` (hosts, auth), `qc-cli`, `quant-static-sites`,
   `quant-edge-functions-and-kv`, `quant-rules-and-routing`, `quant-ci-github-actions`
 
-<!-- checked against npm:@quantcdn/quant-cli 7.0.1 -->
+<!-- checked against npm:@quantcdn/quant-cli 7.0.2 -->

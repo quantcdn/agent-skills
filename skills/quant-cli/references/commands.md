@@ -1,6 +1,6 @@
 # quant commands reference
 
-`@quantcdn/quant-cli` 7.0.1. Checked against the source and `docker run --rm quantcdn/cli:7.0.1 <command> --help`.
+`@quantcdn/quant-cli` 7.0.2. Checked against the source and `docker run --rm quantcdn/cli:7.0.2 <command> --help`.
 Return to [SKILL.md](../SKILL.md).
 
 ## Global options
@@ -120,7 +120,7 @@ Order: `quant functions ...` first, so the UUIDs exist, then `quant rules ...`.
 
 ## Docker
 
-`docker run --rm -v "$PWD":/site -w /site -e QUANT_CLIENT_ID -e QUANT_PROJECT -e QUANT_TOKEN -e QUANT_ENDPOINT quantcdn/cli:7.0.1 <command>`
+`docker run --rm -v "$PWD":/site -w /site -e QUANT_CLIENT_ID -e QUANT_PROJECT -e QUANT_TOKEN -e QUANT_ENDPOINT quantcdn/cli:7.0.2 <command>`
 
 The entrypoint is `quant`, so pass the command (for example `deploy dist`) without repeating `quant`.
 The image is multi-architecture (amd64, arm64) and sets `NODE_OPTIONS=--max-old-space-size=8192`.
