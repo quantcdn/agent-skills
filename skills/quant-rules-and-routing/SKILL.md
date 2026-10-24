@@ -13,7 +13,7 @@ function, show a bot challenge, or block with the WAF. For the platform overview
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Rules behave the same on both. Only the host you call changes. Checked 2026-10 against the dashboard
-API (`/api/v2`), `@quantcdn/quant-cli` 7.0.1, `quantcdn/deploy-action` v7.0.1 and Terraform `quantcdn/quant` v5.14.
+API (`/api/v2`), `@quantcdn/quant-cli` 7.0.2, `quantcdn/deploy-action` v7.0.1 and Terraform `quantcdn/quant` v5.14.
 
 | | Public | Gov |
 |---|---|---|
@@ -28,7 +28,7 @@ Ask for the dashboard URL if you do not know the platform. The content API (`api
 1. Quant reads the project's rules **in list order**: the order on the dashboard Rules page, which is
    the `weight` order (lowest first). Disabled rules are skipped.
 2. A rule matches only when **all** its conditions hold (AND): domain, country, traffic source, user
-   agent, cookie, method, URL and IP.
+   agent, cookie, method, URL, IP and ASN.
 3. The **first matching rule whose action ends processing produces the response**. Nothing below it runs.
    The most specific rule does not win; the first one does.
 4. If no rule ends processing, Quant serves the project's static content for the path, with any
@@ -39,9 +39,9 @@ Ask for the dashboard URL if you do not know the platform. The content API (`api
 | Redirect, Proxy, Custom response, Serve static content, Edge function | Yes, always |
 | Basic auth | Only when the credentials are missing or wrong (401). Correct credentials continue |
 | Bot challenge | Only while the visitor has not passed (403 challenge page). A passed visitor continues |
-| Auth function | Only when the function refuses the request. See `quant-edge-functions-and-kv` |
+| Auth function | When the function answers with any status except 201, or cannot run (503). See `quant-edge-functions-and-kv` |
 | Custom response headers | No. Adds headers and continues |
-| Content filter | No. Attaches a filter to the final response and continues |
+| Content filter | No. Attaches a filter to the final response and continues. If the function cannot run, the filter is skipped |
 | Error page | Not checked in normal flow. Used only when Quant builds an error response |
 
 Consequences:
@@ -83,7 +83,7 @@ it does not append the request path for you.
 
 ## Mode fields: the list counts only when the mode names it
 
-`country`, `traffic_source`, `ua`, `ip` and `method` are **mode fields**. Each is `any` or the name of
+`country`, `traffic_source`, `ua`, `ip`, `asn` and `method` are **mode fields**. Each is `any` or the name of
 the list to test. With `any` (or unset), the list is **ignored**.
 
 | You want | Set |
@@ -96,18 +96,19 @@ the list to test. With `any` (or unset), the list is **ignored**.
 `any` usually means someone meant to scope the rule and did not set the mode.
 
 - Country, traffic source and user agent conditions make Quant cache per value (`Vary`). An IP
-  condition makes the response `Cache-Control: private`, so it is not cached. Use IP rules on small
-  areas such as admin paths.
+  or ASN condition makes the response `Cache-Control: private`, so it is not cached. Use IP rules on
+  small areas such as admin paths.
 - `only_with_cookie` matches a cookie **name**; `*` is allowed (`SSESS*`, `wordpress_logged_in_*`).
-- Traffic source and user agent can be set **only in the dashboard** today. The rules API and Terraform
-  do not take them, so manage a rule that needs them in the dashboard, not in Terraform.
+- Traffic source, user agent and ASN can be set **only in the dashboard** today. The rules API and
+  Terraform do not take them, so manage a rule that needs them in the dashboard, not in Terraform.
 
 ## Bot challenge scoping
 
 A challenge rule with no conditions challenges **everyone**. To challenge only suspicious traffic
 from outside Australia, set both conditions on the one rule (they are combined with AND):
 
-- Traffic source: mode "is one of" with cloud hosting, VPN, Tor and similar sources (dashboard).
+- Traffic source: mode "is one of" with cloud / hosting providers, VPN services, Tor exit nodes and
+  known abusers (dashboard).
 - Country: `country: "country_is_not"`, `country_is_not: ["AU"]`.
 
 Because traffic source is dashboard-only, create and keep this rule in the dashboard. Do not manage it
@@ -115,8 +116,8 @@ with Terraform or Pulumi as well. If code must own it, scope it by country only.
 
 With only the traffic-source condition, Australian visitors on a VPN or a corporate cloud network are
 challenged too. A challenged request gets a **403** challenge page (`Cache-Control: no-store`). A passed
-challenge sets the `quant_bot_verification` cookie, valid for the verification TTL (default 10800 s);
-the cookie is bound to the visitor's IP address. A passed visitor continues to the next rule.
+challenge is remembered for the visitor's IP address and sets the `quant_bot_verification` cookie, both
+for the verification TTL (default 10800 s). A passed visitor continues to the next rule.
 
 ## Proxy rules
 
@@ -153,6 +154,8 @@ The organisation must have WAF enabled (ask Quant support).
 - `allow_ip` skips the WAF for those addresses. Paranoia level 1 is the recommended default.
 - A block returns **403** (rate limit: **429**) with a `Quant-Waf-Rule` header naming the rule. Custom
   pages: publish content at `/_quant_waf_403` and `/_quant_waf_429`.
+- Rate limits (by IP, by request header, by WAF hits) are set in the dashboard. A PATCH to the proxy
+  rule through the rules API turns them off. Check them in the dashboard after every API change.
 - Logs: dashboard, Security & WAF, WAF logs; or `quant waflogs` (see `quant-cli`).
 - Request bodies of 20 MB or more are passed to the origin without body inspection.
 
@@ -161,13 +164,14 @@ The organisation must have WAF enabled (ask Quant support).
 | Tool | Use for | Notes |
 |---|---|---|
 | Dashboard, project Rules page | Any rule; the only place for traffic source and user agent | Drag rules to reorder |
-| Rules API (`{dashboard}/api/v2/organizations/{org}/projects/{project}/rules/{type}`) | Scripts and CI, one rule at a time | `Authorization: Bearer <token>`, a dashboard API token with rules permissions |
+| Rules API (`{dashboard}/api/v2/organizations/{org}/projects/{project}/rules/{type}`) | Scripts and CI, one rule at a time | `Authorization: Bearer <token>`, a dashboard API token with `projects:read`, `rules:read` and `rules:write` |
 | `quant rules` or deploy-action `rules` input | Function, auth function and content filter rules kept in the repo | Changes only the rules in its own manifest namespace. See `quant-cli` |
 | Terraform `quant_rule_*`, Pulumi `@quantcdn/pulumi-quant` | Rules declared as code | `base_url` = bare dashboard host. See `quant-iac` |
 
-API types: `redirect`, `proxy`, `headers`, `auth` (basic auth), `custom-response`, `serve-static`,
-`function`, `content-filter`, `bot-challenge`, `error-page`. GET lists, POST creates,
-`/rules/{type}/{rule}` takes GET, PATCH and DELETE. Field names per type are in
+API types: `redirect`, `proxy`, `headers`, `auth` (basic auth), `auth-function`, `custom-response`,
+`serve-static`, `function`, `content-filter`, `bot-challenge`, `error-page`. GET lists, POST creates,
+`/rules/{type}/{rule}` takes GET, PATCH and DELETE. A write sends the action fields at the top level
+(for example `redirect_to`); GET returns them inside `action_config`. Field names per type are in
 [references/rule-types.md](references/rule-types.md).
 
 **Writes replace lists.** A PATCH changes only the fields you send, but each list you send replaces
@@ -190,8 +194,8 @@ jq '{url: (.url + ["/promo-2026"] | unique)}' rule.json |
 - Through the API, `weight` must be 0 or more. A new rule without `weight` goes to the end of the list.
 - Pick one tool per rule. A dashboard edit to a Terraform rule shows as drift on the next plan. Rules
   that need traffic source or user agent conditions belong to the dashboard.
-- In `quant rules` manifests, `type: auth` is an **auth function**. In the API and Terraform, `auth`
-  is **basic auth** (`auth_user`, `auth_pass`).
+- In `quant rules` manifests, `type: auth` is an **auth function** (API type `auth-function`). In the
+  API and Terraform, `auth` is **basic auth** (`auth_user`, `auth_pass`).
 
 ## Test a change
 
@@ -227,6 +231,8 @@ jq '{url: (.url + ["/promo-2026"] | unique)}' rule.json |
 | PATCH removed other URLs or countries | List fields are replaced, not appended | GET, merge, PATCH the full list |
 | Removed header still sent after a PATCH | Action settings are merged | Delete and recreate the rule |
 | 409 from the rules API | Concurrent rules change, or a rule managed in code | Retry; change managed rules through `quant rules` |
+| WAF rate limits off after an API change | A PATCH to a proxy rule resets them | Set them again in the dashboard |
+| Auth-protected path returns 503 | The auth function is missing, unpublished or not an auth function | Deploy and publish the function; check the rule's function UUID |
 | `*.example.com` domain rule never matches | Domains are exact host names | List each host name, or `any` |
 
 ## Further reading
@@ -241,4 +247,4 @@ jq '{url: (.url + ["/promo-2026"] | unique)}' rule.json |
 - Related skills: `quant-platform`, `quant-cli`, `quant-edge-functions-and-kv`, `quant-iac`,
   `quant-domains-cache-purge`, `quant-static-sites`
 
-<!-- checked against npm:@quantcdn/quant-cli 7.0.1 -->
+<!-- checked against npm:@quantcdn/quant-cli 7.0.2 -->
