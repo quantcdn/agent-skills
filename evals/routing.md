@@ -18,6 +18,7 @@ Exactly one primary skill per prompt.
 | Australians are getting the bot challenge although the rule says country is not AU. | quant-rules-and-routing |
 | Write an edge function that checks a header and returns JSON. | quant-edge-functions-and-kv |
 | How do I store and read a key in a KV store from a function? | quant-edge-functions-and-kv |
+| My KV `for await` loop in an edge function throws LIMIT_EXCEEDED. | quant-edge-functions-and-kv |
 | My auth function rule lets everyone through to /members. What is wrong? | quant-edge-functions-and-kv |
 | Show a per-visitor greeting inside a cached static page with `{{QUANT_FN:...}}`. | quant-edge-functions-and-kv |
 | My container needs 1 vCPU and a MySQL database. What goes in the compose file? | quant-cloud-apps |
