@@ -273,7 +273,9 @@ Static + edge: add to the deploy step
 2. Apps: `PORT=3001` / `EXPOSE 3000` on `app-node`; port 80 on `app-apache-php`.
 3. Apps: `x-quant-labels` task size and `quant.architecture`; build platform matches.
 4. Apps: local database labelled `quant.type: mysql` or `postgres`; no injected names and no fixed
-   secrets in `environment:`; local values only in the override example.
+   secrets in `environment:`; local values only in the override example. Declare each secret in
+   `quant/meta.json`, and make the container stop at start-up when a secret is empty (as the
+   Statamic, Craft CMS and EmDash templates do).
 5. Apps: image tag prefix = compose service name.
 6. Static: `dir:` = output directory; `endpoint` from `QUANT_ENDPOINT` for gov.
 7. Edge: a committed `uuid` on every manifest entry; rules use `function_ref`.

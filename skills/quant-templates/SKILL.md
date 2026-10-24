@@ -1,6 +1,6 @@
 ---
 name: quant-templates
-description: Use when choosing, starting from, copying or writing a Quant starter template (the `quantcdn-templates` GitHub organisation) on QuantCDN or QuantGov - which template fits (app template on Quant Cloud, static SSG template, or static + edge functions and KV such as `ssg-astro-edge-saas`), what the dashboard wizard sets up (repository, project or application, GitHub secrets and variables, database, KV stores), the `quant/meta.json` keys (`template_type`, `requires_db`, `requires_cache`, `requires_s3`, `secrets`, `kv_stores`, `project_settings`), copying a template by hand, and making your own template (layout, Dockerfile, override example, `build-deploy.yaml`, build platform). Also use when a workflow copied from a template deploys into the wrong application or environment or pins `quant-cloud-compose-action@v1`, when a site copied from a template lacks its database, secrets or KV stores, when a template ships a fixed `APP_KEY`, or when a container built from a template exits with `exec format error`.
+description: Use when choosing, starting from, copying or writing a Quant starter template (the `quantcdn-templates` GitHub organisation) on QuantCDN or QuantGov - which template fits (app template on Quant Cloud, static SSG template, or static + edge functions and KV such as `ssg-astro-edge-saas`), what the dashboard wizard sets up (repository, project or application, GitHub secrets and variables, database, KV stores), the `quant/meta.json` keys (`template_type`, `requires_db`, `requires_cache`, `requires_s3`, `secrets`, `kv_stores`, `project_settings`), copying a template by hand, and making your own template (layout, Dockerfile, workflow, build platform). Also use when a workflow copied from a template deploys into the wrong application or environment or pins `quant-cloud-compose-action@v1`, when a site copied from a template lacks its database, secrets or KV stores, when a container stops with "is not set to a unique value", or when a container built from a template exits with `exec format error`.
 ---
 
 # Quant templates
@@ -85,7 +85,7 @@ The wizard also sets up what the template needs:
   deploy and purge steps that have no `endpoint`.
 - It removes the template-maintenance files (`ci.yml`, `ci-develop.yml`, `.github/dependabot.yml`).
 
-It does not remove fixed secrets that some compose files ship (see [Fixed secrets](#fixed-secrets-in-some-templates)).
+App containers refuse to start without their generated secrets (see [Secrets in app templates](#secrets-in-app-templates)).
 Every later push to `main` deploys.
 
 ## Copy a template by hand
@@ -107,7 +107,8 @@ Use this when you fork or copy a template on GitHub instead of using the wizard.
    `quant.architecture: ARM64`, and the template workflows build `linux/arm64` by default (QEMU on
    `ubuntu-latest`). For faster native builds, set the variable `RUNNER_TYPE=ubuntu-24.04-arm`. See
    [Build platform](#build-platform-apps).
-5. Replace the fixed secrets that some compose files ship ([Fixed secrets](#fixed-secrets-in-some-templates)).
+5. Set every secret that `quant/meta.json` declares as an environment secret, with your own random
+   value ([Secrets in app templates](#secrets-in-app-templates)). The container does not start without them.
 6. Delete `ci.yml` (and `ci-develop.yml` if present) if you like: it maintains the template itself.
 7. Push to `main`. The init action maps `main` to the `production` environment.
 
@@ -231,21 +232,38 @@ quant/edge-rules.json               # edge templates: rules (function_ref = mani
   when `QUANT_API_TOKEN` and `QUANT_BASE_URL` exist. Format and deploy: `quant-edge-functions-and-kv`.
 - The README of a template with a one-time credential must say how to replace a lost one.
 
-## Fixed secrets in some templates
+## Secrets in app templates
 
-These compose files set a published default in the deployed `environment:`. The value overrides an
-environment secret of the same name, and the wizard does not remove it:
+App templates ship no fixed secrets. Each secret is declared in `quant/meta.json`, and the wizard
+generates a random value on the `production` environment when you deploy:
 
-| Template | Variables |
+| Template | Generated secrets |
 |---|---|
-| `app-statamic` | `APP_KEY` |
-| `app-craft-cms` | `CRAFT_SECURITY_KEY`, and `CRAFT_ADMIN_PASSWORD` (default `password`) for the first install |
-| `app-emdash` | `EMDASH_AUTH_SECRET`, `EMDASH_PREVIEW_SECRET` (these override the secrets the wizard generates) |
+| `app-statamic`, `app-laravel` | `APP_KEY` |
+| `app-symfony` | `APP_SECRET` |
+| `app-craft-cms` | `CRAFT_SECURITY_KEY`, `CRAFT_ADMIN_PASSWORD` (first install only) |
+| `app-emdash` | `EMDASH_AUTH_SECRET`, `EMDASH_PREVIEW_SECRET` |
+| `app-payloadcms` | `PAYLOAD_SECRET` |
 
-Before the first deploy, generate unique values, set them as environment secrets, and remove the
-lines from `docker-compose.yml` (keep local values in the override file). If a site already runs with
-a published value, rotate it and change the admin password. `app-laravel` and `app-symfony` keep
-`APP_KEY` and `APP_SECRET` out of the compose file; the wizard generates them.
+- Statamic, Craft CMS and EmDash check their secrets at start-up. If a secret is empty, or holds a
+  value that an earlier template version published, the container stops with
+  `ERROR: <NAME> is not set to a unique value. Set it as an application secret and redeploy.`
+- Craft CMS installs on first start with `CRAFT_ADMIN_PASSWORD`. Read it from the environment's
+  secrets for the first login, then change the password in the control panel.
+- Locally, put your own values in `docker-compose.override.yml` (copy the `.example` file). Generate
+  them, for example `openssl rand -hex 32`; Laravel and Statamic: `php artisan key:generate --show`.
+- Copied by hand, or a new environment: set the secrets yourself (only the wizard generates them,
+  and only on `production`).
+
+**Older copies.** A copy made before 2026-10-24 can still set a literal value for these variables in
+`docker-compose.yml`. That value overrides the environment secret. Delete the lines, set unique
+environment secrets, and redeploy. After you take the start-up check into such a site, it refuses
+the published values until you set new ones.
+
+**Warning:** do not change `APP_KEY` or `CRAFT_SECURITY_KEY` on a live site without a plan. A new
+key logs every user out, and data encrypted with the old key cannot be read. If a live site uses a
+published value, rotate it anyway, then enter the affected settings again and change the admin
+password.
 
 ## Common problems
 
@@ -261,7 +279,8 @@ a published value, rotate it and change the admin password. `app-laravel` and `a
 | Edge template: `Access to KV store ... is not allowed` | Copied by hand; store not created or not linked | Create the store, link it to the project, seed values |
 | Edge template: rules never appear | No `QUANT_API_TOKEN` / `QUANT_BASE_URL`, so the workflow skips `rules` | Add a project-scoped token (`projects:read`, `rules:read`, `rules:write`) and `{dashboard}/api/v2` |
 | Lost the one-time owner key from setup | Only its hash is stored | Follow the template README's reset steps |
-| Statamic, Craft CMS or EmDash site runs with the template's key or secret | The compose file ships a fixed, published default | [Fixed secrets](#fixed-secrets-in-some-templates): set unique secrets, remove the defaults, redeploy; rotate on existing sites |
+| Container stops: `ERROR: <NAME> is not set to a unique value` | A declared secret is missing (copied by hand, new environment) or still holds a published default | Set a unique environment secret and redeploy ([Secrets in app templates](#secrets-in-app-templates)) |
+| Statamic, Craft CMS or EmDash site runs with a key from the template | An older copy sets a literal value in `docker-compose.yml` | Delete the lines, set unique secrets, redeploy; rotate on existing sites |
 | Image pull fails: tag not found | Workflow tag prefix differs from the compose service name | Tag `<service>-<suffix>` |
 | Template not in the dashboard picker | Not a public `app-*` or `ssg-*` repository in `quantcdn-templates` | Use **Use this template** and copy by hand |
 
