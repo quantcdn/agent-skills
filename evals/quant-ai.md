@@ -70,3 +70,16 @@ Must not include:
 - `base_url` ending in `/api/v2` or `/api/v3`
 - A `quant_ai_workflow` resource
 - A hyphen in the custom tool `name`
+
+Prompt: Our organisation uses Quant AI with tool approvals. In QuantCode a prompt said "Cloud tool `create_ticket` (write) needs your approval" and I pressed Escape. Our nightly `quantcode run` job also called the same tool and the model said it is waiting for approval. Did Escape reject the call, how do we approve both, and how do we turn tool approvals on for our second organisation?
+Platform: public
+Must include:
+- Escape (or "Decide later") closes the prompt without a decision; the proposal stays pending and is not rejected
+- Decide on the dashboard page AI Services, Approvals: Approve, Approve for session (own interactive request only, when allowed) or Reject with an optional reason
+- `quantcode run` (and autonomous mode) never answers an approval prompt; a person decides on the Approvals page
+- After the decision, the outcome arrives on the next user turn as a `[Platform notice]`, and the model reads the result with `check_tool_execution_status` and the proposal ID
+- Tool approval is enabled per organisation by Quant; contact Quant (there is no self-serve switch)
+Must not include:
+- A claim that Escape rejects the call
+- An API setting or header that turns approvals on
+

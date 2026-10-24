@@ -1,6 +1,6 @@
 ---
 name: quant-ai
-description: Use when calling or configuring Quant AI services on QuantCDN or QuantGov - the AI API under `{dashboard}/api/v3/organizations/{org}/ai` (models, buffered `/chat`, SSE `/chat/stream`, async `async true` with polling and `/chat/callback`, embeddings), the OpenAI-compatible `/oai/v1` surface (OpenAI SDKs, LangChain, `base_url`), sessions, tool calling and custom tools (edge functions), agents and agent overlays, skills and skill collections, vector database collections and documents (RAG), workflows with webhook and scheduled triggers (webhook secret, HMAC `X-Hub-Signature-256`, Reveal and Rotate), AI Governance (model allowlist, guardrail presets, filter policies, spend limits), which models are available (QuantGov is Australian-resident only), and the Terraform `quant_ai_*` resources. Also use for 401/403/429 from the AI API, "spend limit reached", "AI services are disabled", `model_not_available_in_region`, and streams that stop part way. Not for website search or the search widget (`quant-search`).
+description: Use when calling or configuring Quant AI services on QuantCDN or QuantGov - the AI API under `{dashboard}/api/v3/organizations/{org}/ai` (models, buffered `/chat`, SSE `/chat/stream`, async `async true` with polling and `/chat/callback`, embeddings), the OpenAI-compatible `/oai/v1` surface (OpenAI SDKs, LangChain, `base_url`), sessions, tool calling and custom tools (edge functions), agents and agent overlays, skills and skill collections, vector database collections and documents (RAG), workflows with webhook and scheduled triggers (secret or HMAC auth), AI Governance (model allowlist, guardrail presets, filter policies, spend limits), tool approvals (`pending_approval`, the Approvals page), which models are available (QuantGov is Australian-resident only), and Terraform `quant_ai_*`. Also use for 401/403/429 from the AI API, "spend limit reached", "AI services are disabled", `model_not_available_in_region`, and streams that stop part way. Not for website search or the search widget (`quant-search`).
 ---
 
 # Quant AI services
@@ -242,6 +242,17 @@ AI Services, AI Governance (needs the AI governance permission), `GET`/`PUT /gov
   resets: next day for daily caps, next month for monthly caps. Current Spend in the dashboard, or
   `GET /governance/spend`, shows month-to-date and today.
 
+## Tool approvals
+
+An organisation can require a person's approval before chosen platform tools run. Quant turns this
+on per organisation (contact Quant; there is no self-serve switch). A tool call that needs approval
+does not run: its result is `pending_approval` with a proposal ID (`p_...`). A person decides on
+the dashboard page AI Services, **Approvals** (Approve, Approve for session, Reject with a reason),
+or in the QuantCode prompt. The outcome reaches the conversation on the next user turn as a
+`[Platform notice]`, and the model reads the result with `check_tool_execution_status`. In
+QuantCode, **Escape** means "decide later": no decision is sent and the proposal stays pending.
+`quantcode run` and autonomous mode never approve. Details: [references/tool-approvals.md](references/tool-approvals.md).
+
 ## Terraform and Pulumi
 
 Resources: `quant_ai_agent`, `quant_ai_agent_overlay`, `quant_ai_custom_tool`, `quant_ai_skill`,
@@ -289,6 +300,7 @@ guardrail presets follow the Australian PSPF classifications (OFFICIAL, OFFICIAL
 | `finish_reason` says `stop` but text is cut (`/oai/v1` stream) | Streams report `stop` on max-token truncation | Raise `max_tokens`; check usage |
 | Agent ignores a skill or tool | Not assigned, or the skill's required tool is missing | Assign both; test in the agent chat panel |
 | Agent tool calls fail after a change | Tool deleted or removed from the agent | Re-assign or redeploy the tool |
+| Tool result `pending_approval`; the tool does not run | The organisation requires approval for that tool | Decide on AI Services, Approvals; the result arrives on the next turn ([tool approvals](references/tool-approvals.md)) |
 | Webhook 401 | Wrong mode, secret rotated, body changed after signing | Reveal the secret; sign the exact raw body; match the auth mode |
 | Vector query returns nothing | `threshold` too high, wrong collection, no documents | Lower `threshold` (for example 0.5), check the collection ID, list documents |
 | Website pages not answerable | Used a vector collection for site search | Use AI Search (`quant-search`) |

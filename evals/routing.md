@@ -58,3 +58,4 @@ Exactly one primary skill per prompt.
 | Deploy from my laptop with the cloud CLI or the content CLI? | quant-platform |
 | My WordPress plugin says Unable to connect to local webserver when I push to Quant. | quant-cms-integrations |
 | Drupal on Quant Cloud says the provided host name is not valid for this server. | quant-cms-integrations |
+| An AI tool call in our org returns pending_approval. Where do I approve it? | quant-ai |
