@@ -1,8 +1,9 @@
 # qc command reference
 
-Checked against `@quantcdn/quant-cloud-cli` 0.7.0. Every command that works on an environment
-accepts `--org`, `--app` and `--env` overrides unless noted. `--platform` is accepted by most
-commands and has no effect in this version; use `qc platform switch`.
+Checked against `@quantcdn/quant-cloud-cli` 0.7.2. Every command that works on an environment
+accepts `--org`, `--app` and `--env` overrides unless noted. Most commands also accept
+`--platform <id>` (0.7.1 and later): it uses another logged-in platform for that command only.
+`qc org` commands have no `--platform`; use `platform:` in `.quant.yml`.
 
 ## Authentication and platform
 

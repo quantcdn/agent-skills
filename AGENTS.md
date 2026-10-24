@@ -45,8 +45,9 @@ Use the values for that platform:
   The bare host works for every Quant Cloud action. The v4 actions also accept `{dashboard}/api/v3`.
 - `deploy-action` takes `api-base-url` (`{dashboard}/api/v2`) and `endpoint` (the content API).
 - Terraform and Pulumi take `base_url` = the bare dashboard host (no `/api/v2` or `/api/v3`).
-- `qc`: run `qc login` and choose the platform, then `qc platform switch`. The `--platform`
-  flag and the `platform:` key in `.quant.yml` are ignored; do not use them.
+- `qc`: run `qc login` and choose the platform, then `qc platform switch`. From `qc` 0.7.1,
+  `--platform <id>` or `platform:` in `.quant.yml` targets another logged-in platform for one
+  command; older versions ignore both.
 
 Public and gov have the same products; some cache, purge and domain behaviour differs (see
 `quant-domains-cache-purge`). Gov adds AU Government restrictions.
