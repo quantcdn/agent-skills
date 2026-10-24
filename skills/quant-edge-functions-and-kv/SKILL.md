@@ -210,6 +210,11 @@ GitHub Actions (gov values shown; public: `https://api.quantcdn.io/v1` and
 - Rules from the file are read-only in the dashboard. A rule changed there makes the next deploy
   fail with a drift report; `rules-force: true` overwrites it.
 - Without CI: `quant functions quant/edge-functions.json`, then `quant rules ...` (`quant-cli`).
+- **Every deploy path uploads the file at `path` as it is.** `quant functions`, deploy-action and Studio
+  publish (manifest sync) do not compile, bundle or run package scripts. If you generate function code
+  (TypeScript, bundling), build it first and point `path` at the output: commit the output for Studio
+  publish, or build in the same CI job before `quant functions`/deploy-action. Studio publish never
+  runs your build hooks (see `quant-studio`).
   Workflow details: `quant-ci-github-actions`. Terraform and Pulumi: `quant-iac`.
 
 ## KV stores
@@ -296,6 +301,7 @@ outcome with it. See [references/kv-ledgers.md](references/kv-ledgers.md).
 | Filter changes nothing on a static CSS or JS file, or on a JSON proxy response | Filters skip static files and non-HTML rule responses | Use a function rule for those types |
 | JSON or CSS from a function comes back altered | A filter rule also matches the function's URL; filters run on all function output | Narrow the filter rule's URLs, or skip non-HTML in the filter |
 | Second filter rule ignored | Only the last matching filter applies | Combine the filters into one |
+| Studio publish deployed an old or unbuilt function | Studio uploads the committed file at `path`; it runs no build | Commit the built file, or build in CI and deploy with `quant functions` |
 | A new function appeared after a deploy | The manifest `uuid` changed | Restore the old UUID; delete the extra function in the dashboard |
 | Deploy fails: rules need `api-token` | `rules` set without the platform token | Add `api-token` and `api-base-url` (`{dashboard}/api/v2`) |
 | Rules deploy refused with drift | A managed rule was edited in the dashboard | Change the file, or deploy with `rules-force: true` |

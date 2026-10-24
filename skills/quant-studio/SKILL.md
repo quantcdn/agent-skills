@@ -109,6 +109,17 @@ deployed. There are two ways to deploy, chosen in **Settings > General > Use Qua
   no longer produces is unpublished. A build with failures never unpublishes.
 - Studio publish also creates declared KV stores and project settings from `quant/meta.json`, and deploys
   `quant/edge-functions.json` entries (see `quant-templates`, `quant-edge-functions-and-kv`).
+- **Edge functions are synced as committed source.** For each manifest entry, Studio reads the file at
+  `path` from the branch and uploads its text unchanged. Studio publish does not run `npm` scripts,
+  package build hooks or a bundler for function files, and the site build does not feed them. A
+  missing file is reported as `file not found in branch`; a function sync failure does not stop the
+  site publish, so read the publish summary.
+- If your function code is generated (TypeScript, bundled imports, templated values), use one of:
+  1. Build it locally or in a pre-commit step and **commit the output file** that the manifest names.
+  2. Build it in CI and deploy with `quant functions` or `deploy-action` `functions:` (see
+     `quant-ci-github-actions`). Then keep the entry out of the Studio-synced manifest, or commit the same
+     built file, so two sources do not overwrite each other on the same UUID.
+  Do not assume a package script ran before the manifest sync. Test any other build path yourself first.
 - Quant purges a path when the content API changes it. For a custom domain, TLS and extra purges, see
   `quant-domains-cache-purge`.
 
@@ -188,6 +199,7 @@ delete), **Studio Read Only** (browse). The API sends `Authorization: Bearer <to
 | API call returns 403 | Token lacks the scope, or the user lacks the permission | Use a token with the matching `studio:*` scope |
 | API call edits the wrong branch | `branch` defaults to `main` | Pass `?branch=<name>` |
 | Merge is rejected | GitHub branch protection | Satisfy the rule in GitHub (reviews, checks) and merge again |
+| Edge function from Studio publish is stale, empty or a source file | The manifest `path` names a file that a build step generates; Studio uploads the committed file as is | Commit the built file, or build in CI and deploy with `quant functions` |
 | Route missing after Build & Publish, with a warning | It needs a native dependency the browser cannot run | Deploy with the workflow for those assets |
 
 ## Further reading
