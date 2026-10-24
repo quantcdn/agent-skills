@@ -7,9 +7,13 @@ array that holds one object; both are read the same way.
 
 | Reader | Keys it applies |
 |---|---|
-| Dashboard template wizard (templates in `quantcdn-templates`) | `requires_db`, `requires_cache`, `requires_s3`, `secrets` (apps); `kv_stores`, `project_settings` (static) |
+| Dashboard template wizard (templates in `quantcdn-templates`) | `secrets` (apps); `kv_stores`, `project_settings` (static) |
 | Studio publish (the Studio site's own repository) | `kv_stores`, `project_settings` |
 | GitHub deploy workflow (`deploy-action`) | None. It reads `quant/edge-functions.json` and `quant/edge-rules.json` |
+
+The app wizard does not read `requires_db`, `requires_cache` or `requires_s3`. It pre-selects a
+managed database when `docker-compose.yml` has a service with a `mysql`, `postgres` or `mariadb`
+image. Add a cache or object storage in the wizard or later.
 
 A repository you copy by hand, or a template in your own organisation, gets nothing from the
 wizard: create the database, secrets, KV stores and settings yourself.
@@ -18,14 +22,15 @@ wizard: create the database, secrets, KV stores and settings yourself.
 
 | Key | Type | Kinds | Meaning |
 |---|---|---|---|
-| `template_type` | string | all | `"app"` (Quant Cloud), `"ssg"` (static), `"base"` (a base image) |
-| `requires_db` | boolean | app | The wizard provisions a managed MySQL or Postgres database. The platform injects `DB_*` |
-| `requires_cache` | boolean | app | The wizard pre-selects a managed cache. Attaching injects `REDIS_*` and `CACHE_PREFIX` |
-| `requires_s3` | boolean | app | The wizard pre-selects object storage. Attaching injects `S3_*` |
-| `secrets` | array | app | Each `{"name", "generate": "random", "length"}` becomes a random secret of `length` characters (default 64) on the `production` environment. Entries without `"generate": "random"` are ignored |
+| `template_type` | string | all | `"app"` (Quant Cloud), `"ssg"` (static), `"base"` (a base image). The pickers list repositories by name (`app-*`, `ssg-*`), not by this key |
+| `requires_db` | boolean | app | Records that the app needs a database. A managed database injects `DB_*` |
+| `requires_cache` | boolean | app | Records that the app needs a cache. An attached cache injects `REDIS_*` and `CACHE_PREFIX` |
+| `requires_s3` | boolean | app | Records that the app needs object storage. Attached storage injects `S3_*` |
+| `secrets` | array | app | Each `{"name", "generate": "random", "length"}` becomes a random secret of `length` letters and digits (16-256, default 64) on the `production` environment. Entries without `"generate": "random"` are ignored; `description` is for readers |
 | `kv_stores` | array | static | KV stores to create, seed and link to the project (below) |
 | `project_settings` | object | static | Only `enable_inline_fn` (boolean). Setup only turns a setting on; `false` changes nothing. Any other key fails setup |
 | `title`, `summary`, `content`, `image`, `categories`, `tags`, `url` | | all | Describe the template. No effect on what is created |
+| Other keys, for example `description`, `icon`, `environment_variables`, `og_images` | | | The wizard ignores them |
 
 App example:
 
@@ -71,12 +76,16 @@ A generic example (not any one template's file):
 }
 ```
 
-- `name`: lowercase, starts with a letter, at most 48 characters, unique in the file. The store ID is
-  `<organisation>-<project>-<name>`; functions read the store by that ID (`quant-edge-functions-and-kv`).
-- Limits: 10 stores, 100 initial values in total, 16 KiB per value, 64 KiB in total. An invalid
-  declaration fails setup before any store is created.
-- Setup creates each store, writes the initial values, then links the store to the project. A key
-  that already exists is never replaced.
+- A store accepts only `name`, `initial_values` and `indexes`.
+- `name`: lowercase letters, digits and `-`, starts with a letter, at most 48 characters, unique in
+  the file. The store ID is `<organisation>-<project>-<name>`; functions read the store by that ID
+  (`quant-edge-functions-and-kv`).
+- Limits: 10 stores, 100 initial values in total, 16 KiB per value, 64 KiB in total. A key is unique
+  in its store, at most 512 bytes, with no control characters. An invalid declaration fails setup
+  before any store is created.
+- Setup creates each store as format 2, declares its indexes and waits until they are `ACTIVE`,
+  writes the initial values, then links the store to the project. A key that already exists is never
+  replaced.
 
 Three kinds of initial value:
 
@@ -87,7 +96,7 @@ Three kinds of initial value:
 | One-time credential | `{"key": "...{sha256}...", "generate": {"bytes", "reveal": "once", "label"}, "value"}` | `value` under a key in which `{sha256}` is the SHA-256 hex of a random value. The setup screen shows the random value once; only the hash is stored |
 
 - `{sha256}` appears exactly once, and only in the key of a one-time credential. A one-time credential
-  cannot be `encrypted`. At most four per store.
+  cannot be `encrypted`. At most four per store. `label` is at most 80 characters.
 - `{user_name}` in a `value` becomes the name of the person who creates the site (on Studio publish:
   the person who publishes).
 - A lost one-time credential cannot be shown again. The template's README must explain how to add a
@@ -96,3 +105,21 @@ Three kinds of initial value:
 Studio publish creates and links declared stores that the project does not link, and writes each
 declared key at most once: a key someone deleted stays deleted. It never creates one-time
 credentials; use the README steps.
+
+## Indexes
+
+A store can declare `indexes` next to `initial_values`. Each entry has the fields of the KV
+management API (`name`, `collection`, `fields`, optional `sortBy`, `unique`, `count`) and nothing else;
+rules and limits are in `quant-edge-functions-and-kv`.
+
+```json
+"indexes": [
+  { "name": "projectsByStatus", "collection": "workspace:*:project",
+    "fields": ["workspace", "status"], "sortBy": "updatedAt", "count": true }
+]
+```
+
+- Setup and Studio publish declare an index the store does not have. They never change or drop an
+  index: a definition cannot change, so give a changed index a new name.
+- An index with the same name and a different definition fails setup. So does an existing store in format 1.
+- Studio publish does not wait: queries on a new index work when it is `ACTIVE`.
