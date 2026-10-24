@@ -56,3 +56,13 @@ Must include:
 Must not include:
 - A claim that the token works without enabling inline functions
 - Edge Side Include `<esi:include>` tags as the Quant syntax
+
+Prompt: My Quant edge function writes sessions with `kvStore.set(STORE, key, session, { expiration: 3600 })` but the keys never expire. It also lists a user's orders with `kvStore.search(STORE, { prefix: 'order:', where: { userId }, limit: 50 })` and sometimes gets an empty page. I created the store with the platform API. What is wrong?
+Platform: gov
+Must include:
+- `expiration` is not a `set()` option and is ignored; use `ttl` in seconds (60 to 31,536,000)
+- `limit` is the most items one page returns (1 to 100); one call reads at most 2,000 rows, so a filtered page can be short or empty while `hasMore` is `true`; follow `cursor` until `hasMore` is `false`
+- A store created with the platform API (or Terraform) is format 1; a format 2 store (dashboard default, or an upgrade on the store's Format & upgrade tab) lists a collection in id order
+Must not include:
+- A claim that an empty page means there are no more results
+- A claim that every unknown `set()` option throws `VALIDATION`

@@ -13,8 +13,8 @@ rules that run functions, see `quant-rules-and-routing`. For the `quant function
 ## Applies to
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
-Functions and KV behave the same on both. Checked 2026-10 against `@quantcdn/quant-cli` 7.0.1,
-`quantcdn/deploy-action` v7.0.1 and the public docs.
+Functions and KV behave the same on both. Checked 2026-10-24 against `@quantcdn/quant-cli` 7.0.2,
+`quantcdn/deploy-action` v7.0.1, the edge runtime and the public docs.
 
 | | Public | Gov |
 |---|---|---|
@@ -100,7 +100,7 @@ return new Response(null, { status: 201 }); // 201 = continue to the next rule
 **Note: an auth rule fails closed when its function is unavailable.** If the function is
 missing, has no published revision (it was never published, or it was unpublished or deleted in
 the dashboard or Studio), is not an auth function, or is invalid, Quant returns HTTP 503
-with `Cache-Control: no-store` and a generic body. The request does not reach the content.
+with `Cache-Control: private, no-store` and a generic body. The request does not reach the content.
 
 1. Deploy and publish the function **before** you attach the auth rule.
 2. Give the auth rule a **lower weight** (earlier position) than every rule that serves or
@@ -214,8 +214,10 @@ GitHub Actions (gov values shown; public: `https://api.quantcdn.io/v1` and
 ## KV stores
 
 Create a store in the dashboard (Compute, K/V Stores), the platform API, Terraform
-(`quant_kv_store`) or template setup. Format 2 (the dashboard default) adds indexes,
-conditional writes, transactions and ledgers.
+(`quant_kv_store`) or template setup. Format 2 adds indexes, conditional writes, transactions
+and ledgers. The dashboard (default) and template setup create format 2 stores. The platform API
+and Terraform have no format option and create format 1 stores. Upgrade a format 1 store on the
+store page, **Format & upgrade** tab.
 
 - The first argument of every `kvStore` method is the **store ID**, not the display name. The
   dashboard shows it. Stores that the dashboard and templates create use
@@ -228,11 +230,11 @@ conditional writes, transactions and ledgers.
 
 | Method | Use |
 |---|---|
-| `get(id, key)`, `getEntry(id, key)`, `getMany(id, keys)` | Read; `getEntry` adds timestamps and the `version` |
-| `set(id, key, value, { ttl, secret, ifAbsent, ifVersion })` | Write. `ttl` 60 to 31,536,000 s |
+| `get(id, key)`, `getEntry(id, key)`, `getMany(id, keys)` | Read. `get` returns the value. `getEntry` returns an entry (value, timestamps, `version`); `getMany` returns entries |
+| `set(id, key, value, { ttl, secret, ifAbsent, ifVersion })` | Write. `ttl` 60 to 31,536,000 s. There is no `expiration` option: use `ttl` |
 | `delete(id, key, { ifVersion })` | Delete |
 | `increment(id, key, amount = 1, { ttl })` | Atomic add; returns the new number |
-| `list(id, opts)`, `search(id, opts)` | Pages of keys, 1 to 100 per call, with a `cursor` |
+| `list(id, opts)`, `search(id, opts)` | Pages of up to `limit` (1 to 100) items, with a `cursor` |
 | `atomic(id)...commit({ idempotencyKey })` | 1 to 25 operations, all or none (format 2) |
 | `append(id, collection, value, { idempotencyKey })` | Add an entry to a ledger |
 
@@ -265,6 +267,7 @@ can never change: `set`, `delete`, `increment` and `ttl` on ledger keys fail wit
 | Function sees a different path than the visitor requested | Read from `event.url` | Use `new URL(event.request.url).pathname` |
 | `SyntaxError` or the function never runs | Module syntax (`export`, `import`, `addEventListener`) | Write a function body that returns a `Response` |
 | `Access to KV store <id> is not allowed` | Store name instead of ID, or store not linked to this project | Use the full ID; link the store to the project |
+| `Invalid KV store identifier` | The ID has characters other than letters, digits, `-` and `_` (often a display name) | Use the store ID from the dashboard |
 | `kvStore.get` returns `null` for a key that exists | Format 1 store returns `null` on a failed read; wrong store ID | Check the ID; upgrade to format 2, where failures throw `KVError` |
 | `{{QUANT_FN:...}}` shows in the page | Inline functions off, or the token is not a full UUID | Enable inline functions on the project or proxy rule; use the full UUID |
 | Page shows `Invalid edge function.` | The function in the token is not published | Publish the function (deploy it again) |
@@ -277,7 +280,8 @@ can never change: `set`, `delete`, `increment` and `ttl` on ledger keys fail wit
 | Rules deploy refused with drift | A managed rule was edited in the dashboard | Change the file, or deploy with `rules-force: true` |
 | Gov deploy uploads to the wrong place | `endpoint` not set | `endpoint: https://api.quantgov.cloud/v1` |
 | Counter off by one after a retry | `increment()` retried after a timeout | Do not retry automatically; use a transaction with `idempotencyKey` |
-| `VALIDATION: Unknown set option` | Misspelt `set()` option | Use `ttl`, `secret`, `ifAbsent` or `ifVersion` |
+| `VALIDATION: Unknown set option` | Misspelt condition or secret option (for example `ifAbsnt`) | Use `ttl`, `secret`, `ifAbsent` or `ifVersion` |
+| A key written with `expiration` (or another unknown option) never expires | `set()` and `delete()` ignore unknown option names that do not look like a condition or secret | Use `ttl` (seconds) |
 
 ## Further reading
 
@@ -293,5 +297,5 @@ can never change: `set`, `delete`, `increment` and `ttl` on ledger keys fail wit
 - Related skills: `quant-platform`, `quant-cli`, `quant-rules-and-routing`, `quant-ci-github-actions`,
   `quant-templates`, `quant-iac`
 
-<!-- checked against npm:@quantcdn/quant-cli 7.0.1 -->
+<!-- checked against npm:@quantcdn/quant-cli 7.0.2 -->
 <!-- checked against gh:quantcdn/deploy-action 7.0.1 -->

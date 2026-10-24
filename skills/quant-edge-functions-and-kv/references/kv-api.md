@@ -9,7 +9,7 @@ https://docs.quantcdn.io/compute/kv-ledgers/.
 
 | | Format 1 | Format 2 |
 |---|---|---|
-| Default | API-created stores without `format: 2` | Dashboard-created stores |
+| Created by | The platform API and Terraform (no format option), or the dashboard when you choose format 1 | The dashboard (default) and template setup |
 | `get`/`set`/`delete` failure | Returns `null` / `false` | Throws `KVError` |
 | Listing | Bounded scan, eventually consistent | Collections in id order, strongly consistent reads |
 | Conditional writes, `atomic()`, `reverse`, indexes, ledgers | No (`REQUIRES_FORMAT_2`) | Yes |
@@ -24,15 +24,15 @@ days.
 |---|---|---|
 | `get(id, key)` | Value or `null` | JSON values come back decoded. Secrets come back decrypted |
 | `getEntry(id, key)` | `{ key, value, encrypted?, version?, createdAt, updatedAt, expiresAt? }` or `null` | `version` on format 2 only. Throws on failure, any format |
-| `getMany(id, keys)` | Array in key order, `null` for missing | 1 to 100 keys; response at most 4 MiB (`LIMIT_EXCEEDED`) |
-| `set(id, key, value, opts)` | `true`; `{ version }` with `ifAbsent`/`ifVersion` | Objects are JSON-encoded. Options: `ttl`, `secret`, `ifAbsent`, `ifVersion`; any other option throws `VALIDATION` |
-| `delete(id, key, opts)` | `true` | Option: `ifVersion`. A conditional delete of a missing key throws `CONFLICT` (`reason: 'missing'`) |
+| `getMany(id, keys)` | Array of entries (same shape as `getEntry`) in key order, `null` for missing | 1 to 100 keys; response at most 4 MiB (`LIMIT_EXCEEDED`). Read `result[i]?.value` |
+| `set(id, key, value, opts)` | `true`; `{ version }` with `ifAbsent`/`ifVersion` | Objects are JSON-encoded. Options: `ttl`, `secret`, `ifAbsent`, `ifVersion`. An unknown name that looks like a condition or secret (starts with `if`, or contains `absent`, `version`, `condition`, `exists`, `secret` or `encrypt`) throws `VALIDATION`; other unknown names (such as `expiration`) are ignored |
+| `delete(id, key, opts)` | `true` | Option: `ifVersion`, with the same rule for unknown names. A conditional delete of a missing key throws `CONFLICT` (`reason: 'missing'`) |
 | `increment(id, key, amount = 1, { ttl })` | The new number | Nonzero safe integer, may be negative. A missing or expired key starts at 0. Strings (including `"1"`), objects, fractions and secrets reject |
 | `list(id, opts)` | `{ items, cursor, hasMore, scannedCount, indexed? }` | See options below |
-| `search(id, opts)` | Same shape | Needs at least one of `prefix`, `pattern`, `where`, or a non-`all` `type` |
+| `search(id, opts)` | Same shape | Needs at least one of `collection`, `prefix`, `pattern`, `where`, or a non-`all` `type` |
 | `getBy(id, index, equals)` | Entry or `null` | Unique index only. Strongly consistent |
 | `count(id, { index, equals })` | Number | Count index only. Strongly consistent |
-| `atomic(id)` | Builder: `.check(key, version)`, `.set(...)`, `.delete(...)`, `.increment(key, n)`, `.commit({ idempotencyKey })` | 1 to 25 operations, each on a different key; all or none. Returns `{ versions, replayed }` |
+| `atomic(id)` | Builder: `.check(key, version)`, `.set(...)`, `.delete(...)`, `.increment(key, n)`, `.commit({ idempotencyKey })` | 1 to 25 operations, each on a different key; all or none. Returns `{ versions, replayed }`. Any unknown `set`/`delete` option throws a plain `Error` |
 | `append(id, collection, value, { idempotencyKey })` | Receipt `{ key, id, shard, seq, at, hash, prevHash, ledger, source }` | Ledgers only (below) |
 
 ### List and search options
@@ -44,18 +44,20 @@ days.
 | `where` | `search`; `list` with `collection` or `index` | 1 to 8 top-level field equalities on plaintext JSON objects, AND. Equality only; types must match (`0` is not `"0"`) |
 | `type` | both | `all` (default), `plaintext`, `encrypted` |
 | `includeValues` | both | Default `false`. Secrets show `"[ENCRYPTED]"` |
-| `limit` | both | 1 to 100, default 25. Bounds records **evaluated**, not matched |
+| `limit` | both | 1 to 100, default 25. The most items one page returns |
 | `cursor` | both | From the previous page. Expires after 24 hours. Send the same filters again |
-| `collection` | `list` (format 2) | The text before the last `:` of the keys. `''` is the root collection |
-| `startsWith`, `after`, `before`, `reverse` | `list` (format 2) | Id bounds (no `:`). `reverse` needs format 2 |
+| `collection` | both | The text before the last `:` of the keys. `''` is the root collection. Not with `prefix` or `pattern`. Format 2 reads it in id order; format 1 scans (`indexed: false`) |
+| `startsWith`, `after`, `before`, `reverse` | both, with `collection` | Id bounds (no `:`). `reverse` needs format 2 (`REQUIRES_FORMAT_2`) |
+| `since`, `until` | `list` with a ledger `collection` | Time window (see [Ledgers](#ledgers)) |
 | `index`, `equals` | `list` (format 2) | List by a declared index. Eventually consistent |
 
 Paging rules:
 
 - An empty `items` array with `hasMore: true` is **not** the end. Keep following `cursor` until
   `hasMore` is `false`.
-- A page is limited to 1 MiB of scanned data (format 1) or a read budget (format 2), so it can
-  hold fewer than `limit` items.
+- To fill a page, one call reads at most 2,000 rows (or 20 backing reads, or 4 seconds). With
+  `where` or `type` filters the call can stop first, so a page can hold fewer than `limit` items.
+  `scannedCount` is the number of rows read, not the number of matches.
 - Do not loop over a whole store in one request. Return the cursor to the client, or advance a
   scheduled function in steps.
 - Edge queries time out after 8 seconds and responses over 4 MiB reject. A failure rejects; it is
@@ -116,10 +118,11 @@ A failed condition throws `CONFLICT` with `reason` (`exists`, `version`, `missin
 - For exact counts (credits, billing), use `atomic()...increment(key, n).commit({ idempotencyKey })`
   and retry only with the same key. A transaction does not return the counter value; `get()` it.
 
-## Errors (format 2, `increment`, `getEntry`, `getMany`, ledgers)
+## Errors
 
-Errors are `KVError` with `code`, `retryable` and `status`. Invalid `list`/`search` options throw a
-plain `Error`.
+Failures throw `KVError` with `code`, `retryable` and `status`. Exception: on a format 1 store,
+`get`, `set` and `delete` return `null` or `false` on a failure. Invalid `list`/`search` options
+throw a plain `Error`.
 
 | Code | Retry | Meaning |
 |---|---|---|
@@ -134,8 +137,11 @@ plain `Error`.
 | `CONTENTION` | Yes | Concurrent writes; retry after a short delay |
 | `STORE_MIGRATING` | Yes | Upgrade in progress; retry after a few seconds |
 | `UNAVAILABLE` | Check `retryable` | Outcome may be unknown; for a conditional write, `getEntry()` before you retry |
+| `RESPONSE_INVALID` | No | The runtime could not use the service's response |
+| `LEDGER_IMMUTABLE`, `LEDGER_NOT_READY` | No / Yes | Write to a ledger key; ledger still `PENDING` (see [Ledgers](#ledgers)) |
 
 A store that the function may not use throws a plain `Error`: `Access to KV store <id> is not allowed`.
+An ID with characters other than letters, digits, `-` and `_` throws `Invalid KV store identifier`.
 
 ## Ledgers
 
@@ -169,21 +175,23 @@ const page = await kvStore.list(AUDIT_STORE, {
 - Each entry records `source`: an edge function's entries name the function.
 - Personal fields are encrypted per subject and can be shredded for erasure requests; the hash
   chain still verifies.
-- A store with an `ACTIVE` ledger cannot be deleted until retention ends.
+- A store with a `PENDING` or `ACTIVE` ledger cannot be deleted (`LEDGER_PRESENT`), even with
+  `force=true`.
 
 Verification, anchoring, offline proofs and erasure: https://docs.quantcdn.io/compute/kv-ledgers/
 
 ## Platform API for stores and items
 
 Base: `{dashboard}/api/v2/organizations/{organization}/projects/{project}`, with
-`Authorization: Bearer <platform API token>`.
+`Authorization: Bearer <platform API token>`. The token needs the `kv:read` scope for reads and
+`kv:write` for writes, and your role needs the matching KV permission; otherwise the API returns 403.
 
 | Call | Does |
 |---|---|
-| `GET /kv`, `POST /kv` (`{ "name": ... }`) | List or create stores |
+| `GET /kv`, `POST /kv` (`{ "name": ... }`) | List or create stores. The new store ID is `<organization>-<project>-<name>`, format 1 |
 | `GET /kv/{store_id}`, `DELETE /kv/{store_id}[?force=true]` | Read or delete a store. Without `force`, a store with keys is refused |
 | `POST /kv/{store_id}/link` (`{ "project_id": <id> }`) | Share the store with another project |
-| `DELETE /kv/{store_id}/link` | Remove a linked store from this project |
+| `DELETE /kv/{store_id}/link` | Remove a linked store from this project (403 for the project that owns the store) |
 | `GET /kv/{store_id}/items?cursor=&limit=&search=&include_values=` | List keys |
 | `POST /kv/{store_id}/items` (`{ "key", "value", "secret" }`) | Add an item. `value` is a string; send JSON as a string |
 | `GET`, `PUT`, `DELETE /kv/{store_id}/items/{key}` | Read, update or delete an item |
