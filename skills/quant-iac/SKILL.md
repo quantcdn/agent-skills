@@ -168,9 +168,10 @@ anything that differs.
   so two `quant_header` blocks for one project overwrite each other.
 - **Set `name` and `project` on every rule.** They are optional in the schema and filled in from the
   API when omitted, so a config without them can look correct and still be missing the project.
-- **Keep traffic-source-scoped bot challenge rules dashboard-managed.** Traffic source and user agent
-  conditions are not in the provider or the rules API. A rule that uses them stays in the dashboard;
-  do not import it and then edit it there. If code must own a bot challenge rule, scope it by country.
+- **Keep traffic-source-scoped bot challenge rules out of Terraform.** Traffic source and user agent
+  conditions are not in the provider (the rules API sets them, see `quant-rules-and-routing`). A rule
+  that uses them stays in the dashboard or the API; do not import it and then edit it there. If
+  Terraform must own a bot challenge rule, scope it by country.
 - **`auth` means basic auth in Terraform.** `quant_rule_auth` takes `auth_user` and `auth_pass`; a
   `type: auth` rule in a `quant rules` manifest is an auth function, a different rule. Rules that
   `quant rules` or the deploy-action `rules` input manage should not also be in Terraform.

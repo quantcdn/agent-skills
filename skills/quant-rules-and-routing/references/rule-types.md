@@ -20,13 +20,20 @@ unless a row says otherwise. The dashboard shows the same settings as form field
 | `method_is`, `method_is_not` | list | `GET`, `POST` and so on |
 | `ip` | mode | `any`, `ip_is` or `ip_is_not` |
 | `ip_is`, `ip_is_not` | list | Addresses or CIDR ranges. Makes the response `Cache-Control: private` |
-| `only_with_cookie` | string | Cookie name the request must carry; `*` allowed. Read-only in Terraform; set it in the dashboard |
-| Traffic source | mode + list | Dashboard only. Cloud / hosting providers, VPN services, Tor exit nodes, known abusers, known crawlers |
-| User agent | mode + list | Dashboard only. Splits the cache by user agent |
-| `asn` | mode + list | Dashboard only (GET returns `asn`, `asn_is`, `asn_is_not`). Makes the response `Cache-Control: private` |
+| `only_with_cookie` (write: `cookie_name`) | string | Cookie name the request must carry; `*` allowed. The API writes it as `cookie_name`; `""` clears it. Read-only in Terraform |
+| `traffic_source` | mode | `any`, `traffic_source_is` or `traffic_source_is_not`. Not in Terraform |
+| `traffic_source_is`, `traffic_source_is_not` | list | `cloud` (cloud and hosting providers), `vpn`, `tor-exit`, `abuser` (known abusers), `crawler` (known crawlers) |
+| `ua` | mode | `any`, `ua_is` or `ua_is_not`. Splits the cache by user agent. Not in Terraform |
+| `ua_is`, `ua_is_not` | list | User agent strings, each at most 255 characters |
+| `asn` | mode | `any`, `asn_is` or `asn_is_not`. A PATCH that omits it keeps the current value |
+| `asn_is`, `asn_is_not` | list | AS numbers as strings (`"15169"`), positive integers up to 4294967295. Makes the response `Cache-Control: private` |
+
+The API takes `traffic_source`, `ua`, `asn` and `cookie_name` on every rule type. An invalid mode or
+list value returns 422.
 
 Rules for writing lists through the API: a PATCH replaces each list field it sends (`url`, `domain`,
-`country_is`, `country_is_not`, `ip_is`, `ip_is_not`, `method_is`, `method_is_not`). Lists and maps
+`country_is`, `country_is_not`, `ip_is`, `ip_is_not`, `method_is`, `method_is_not`, `asn_is`,
+`asn_is_not`, `ua_is`, `ua_is_not`, `traffic_source_is`, `traffic_source_is_not`). Lists and maps
 inside the action settings are merged with the stored value, so a PATCH cannot remove entries there.
 
 ## Redirect
@@ -78,13 +85,20 @@ with the 502 for a short cool-down without contacting the origin.
 | `allow_ip` | Addresses that skip the WAF |
 | `block_ip`, `block_ua`, `block_referer`, `block_asn` | Always block these |
 | `block_lists` | Built-in lists: `user_agent`, `referer`, `ip`, `ai` (AI crawlers) |
-| `httpbl` | Project Honeypot Http:BL settings |
-| `thresholds` (GET only) | Rate limits by IP, by request header, or by WAF hits. Modes `disabled`, `report`, `block`; a rate limit can also show a bot challenge. Set them in the dashboard: the API and Terraform do not set them, and a PATCH to the proxy rule turns them off |
-| `notify_slack`, `notify_slack_hits_rpm`, `notify_email` | Notifications |
+| `httpbl` | Project Honeypot Http:BL settings (`httpbl_key` is the key) |
+| `thresholds` | Rate limits: list of `{ type, rps, hits, minutes, cooldown, mode, value, notify_slack }`. `type` `ip` (`rps`), `header` (`rps`, `value` = header name) or `waf_hit_by_ip` (`hits` in `minutes`). `mode` `disabled`, `report`, `block` or `bot_challenge`. A PATCH merges entries by `type` and keeps types it does not send; a request without `thresholds` keeps them all; send `mode: "disabled"` to turn one off. `rps`, `hits`, `minutes` 1 or more; `cooldown` 0 or more; invalid values return 400 |
+| `notify_slack` | Slack webhook URL. A request that sets it copies it into each threshold in the same request that has no `notify_slack` of its own |
+| `notify_slack_hits_rpm` | Hits per minute before a Slack message: a positive integer. `0`, `null` or `""` turns it off (reads back `null`). Other values return 400 |
+| `notify_email` | Email addresses |
 
 An unset `mode` means report only (the dashboard and API default). Edge case: `waf_enabled: true` with
-no `waf_config` inspects nothing. A block is a 403 (429 for a rate limit)
-with header `Quant-Waf-Rule`. Custom pages: `/_quant_waf_403`, `/_quant_waf_429`.
+no `waf_config` inspects nothing. `waf_enabled: false` keeps `waf_config`, so the WAF comes back with
+the same settings. A block is a 403 (429 for a rate limit) with header `Quant-Waf-Rule`. Custom pages:
+`/_quant_waf_403`, `/_quant_waf_429`.
+
+Older write names are still accepted but deprecated: `ip_ratelimit_*`, `header_ratelimit_*` and
+`hit_ratelimit_*` (use `thresholds`; `thresholds` wins when both set a value), `notify_slack_webhook`
+(use `notify_slack`), `notify_slack_rpm` (use `notify_slack_hits_rpm`) and `api_key` (use `httpbl_key`).
 
 ## Custom response headers
 
@@ -155,9 +169,12 @@ passes.
 | `robot_challenge_verification_ttl` | Seconds a pass is valid. Default 10800 |
 | `robot_challenge_challenge_ttl` | Seconds the visitor has to complete a challenge. Default 30 |
 
-Challenge page: 403, `Cache-Control: no-store, must-revalidate`. A pass is remembered for the
-visitor's IP address and sets the `quant_bot_verification` cookie. Scope with country and traffic
-source. Traffic source is dashboard-only, so keep such a rule dashboard-managed.
+Challenge page: 403, `Cache-Control: no-store, must-revalidate`. It needs JavaScript in the browser.
+A pass sets the `quant_bot_verification` cookie. The pass counts only for that host and project and
+the visitor's network (the same IPv4 address, or the same IPv6 /64); a visitor on another network is
+challenged again. Cookies from before the 2026-10 update are not accepted, so earlier visitors see
+one more challenge. Scope with country and traffic source. Terraform cannot set traffic source, so
+keep such a rule in the dashboard or the API.
 
 ## Error page
 

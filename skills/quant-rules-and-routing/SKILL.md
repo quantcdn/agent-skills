@@ -12,8 +12,9 @@ function, show a bot challenge, or block with the WAF. For the platform overview
 ## Applies to
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
-Rules behave the same on both. Only the host you call changes. Checked 2026-10 against the dashboard
-API (`/api/v2`), `@quantcdn/quant-cli` 7.0.2, `quantcdn/deploy-action` v7.0.1 and Terraform `quantcdn/quant` v5.14.
+Rules behave the same on both. Only the host you call changes. Checked 2026-10-24 against the dashboard
+API (`/api/v2`, specification 4.26.0), the edge runtime, `@quantcdn/quant-cli` 7.0.2,
+`quantcdn/deploy-action` v7.0.1 and Terraform `quantcdn/quant` v5.14.
 
 | | Public | Gov |
 |---|---|---|
@@ -99,8 +100,13 @@ the list to test. With `any` (or unset), the list is **ignored**.
   or ASN condition makes the response `Cache-Control: private`, so it is not cached. Use IP rules on
   small areas such as admin paths.
 - `only_with_cookie` matches a cookie **name**; `*` is allowed (`SSESS*`, `wordpress_logged_in_*`).
-- Traffic source, user agent and ASN can be set **only in the dashboard** today. The rules API and
-  Terraform do not take them, so manage a rule that needs them in the dashboard, not in Terraform.
+  Through the API, write it as `cookie_name` (an empty string clears it); GET returns `only_with_cookie`.
+- The rules API sets `traffic_source`, `ua` and `asn` on **every** rule type, with the same mode
+  rule (`any`, `<name>_is`, `<name>_is_not`). Traffic source values: `cloud`, `vpn`, `tor-exit`,
+  `abuser`, `crawler`. AS numbers are positive integers up to 4294967295, sent as strings. User agent
+  entries are at most 255 characters. An invalid value returns **422**.
+- Terraform and Pulumi do not take traffic source or user agent. Manage a rule that needs them in the
+  dashboard or with the rules API, not in Terraform.
 
 ## Bot challenge scoping
 
@@ -111,13 +117,22 @@ from outside Australia, set both conditions on the one rule (they are combined w
   known abusers (dashboard).
 - Country: `country: "country_is_not"`, `country_is_not: ["AU"]`.
 
-Because traffic source is dashboard-only, create and keep this rule in the dashboard. Do not manage it
-with Terraform or Pulumi as well. If code must own it, scope it by country only.
+Through the rules API the same rule is `traffic_source: "traffic_source_is"`,
+`traffic_source_is: ["cloud", "vpn", "tor-exit", "abuser"]`, `country: "country_is_not"`,
+`country_is_not: ["AU"]`. Terraform and Pulumi cannot set traffic source, so keep this rule in the
+dashboard or the API, not in Terraform. If Terraform must own it, scope it by country only.
 
 With only the traffic-source condition, Australian visitors on a VPN or a corporate cloud network are
-challenged too. A challenged request gets a **403** challenge page (`Cache-Control: no-store`). A passed
-challenge is remembered for the visitor's IP address and sets the `quant_bot_verification` cookie, both
-for the verification TTL (default 10800 s). A passed visitor continues to the next rule.
+challenged too. A challenged request gets a **403** challenge page (`Cache-Control: no-store`). The page
+needs JavaScript: the browser solves a short computation, with no interaction for the `invisible` type.
+A passed visitor continues to the next rule and gets the `quant_bot_verification` cookie for the
+verification TTL (default 10800 s).
+
+- The pass counts only for the host and project where the visitor passed, and only from the same
+  network: the same IPv4 address, or the same IPv6 /64. A visitor who changes network is challenged
+  again. Do not copy the cookie between hosts or clients; it does not work there.
+- Cookies issued before the 2026-10 bot challenge update are not accepted. Visitors who passed
+  earlier see the challenge one more time.
 
 ## Proxy rules
 
@@ -154,16 +169,33 @@ The organisation must have WAF enabled (ask Quant support).
 - `allow_ip` skips the WAF for those addresses. Paranoia level 1 is the recommended default.
 - A block returns **403** (rate limit: **429**) with a `Quant-Waf-Rule` header naming the rule. Custom
   pages: publish content at `/_quant_waf_403` and `/_quant_waf_429`.
-- Rate limits (by IP, by request header, by WAF hits) are set in the dashboard. A PATCH to the proxy
-  rule through the rules API turns them off. Check them in the dashboard after every API change.
+- Rate limits are `waf_config.thresholds` (below). A PATCH keeps them unless it sends `thresholds`.
+- Turning the WAF off (dashboard, or `waf_enabled: false`) keeps its configuration. Turning it on
+  again restores the same settings.
 - Logs: dashboard, Security & WAF, WAF logs; or `quant waflogs` (see `quant-cli`).
 - Request bodies of 20 MB or more are passed to the origin without body inspection.
+
+**Rate limits through the API.** Each `thresholds` entry has a `type`: `ip` (`rps`), `header`
+(`rps`, `value` = header name) or `waf_hit_by_ip` (`hits` in `minutes`), plus `cooldown` (seconds) and
+`mode` (`disabled`, `report`, `block` or `bot_challenge`). A PATCH merges entries by `type`: only the
+types you send change, and an empty list changes nothing. To turn one off, send its type with
+`mode: "disabled"`. `rps`, `hits` and `minutes` are integers of 1 or more; `cooldown` is 0 or more.
+An invalid value returns **400**.
+
+```bash
+BASE=https://dashboard.quantcdn.io/api/v2/organizations/$ORG/projects/$PROJECT   # gov: dash.quantgov.cloud
+curl -s -X PATCH -H "Authorization: Bearer $QUANT_API_TOKEN" -H 'Content-Type: application/json' \
+  "$BASE/rules/proxy/$RULE" --data '{"waf_config": {"thresholds": [
+    {"type": "ip", "rps": 20, "cooldown": 60, "mode": "block"}]}}'
+```
+
+The other threshold types and the rest of `waf_config` stay as they were.
 
 ## Three ways to manage rules
 
 | Tool | Use for | Notes |
 |---|---|---|
-| Dashboard, project Rules page | Any rule; the only place for traffic source and user agent | Drag rules to reorder |
+| Dashboard, project Rules page | Any rule | Drag rules to reorder |
 | Rules API (`{dashboard}/api/v2/organizations/{org}/projects/{project}/rules/{type}`) | Scripts and CI, one rule at a time | `Authorization: Bearer <token>`, a dashboard API token with `projects:read`, `rules:read` and `rules:write` |
 | `quant rules` or deploy-action `rules` input | Function, auth function and content filter rules kept in the repo | Changes only the rules in its own manifest namespace. See `quant-cli` |
 | Terraform `quant_rule_*`, Pulumi `@quantcdn/pulumi-quant` | Rules declared as code | `base_url` = bare dashboard host. See `quant-iac` |
@@ -193,7 +225,10 @@ jq '{url: (.url + ["/promo-2026"] | unique)}' rule.json |
   `quant rules`). Retry after a few seconds; for a managed rule, change the manifest instead.
 - Through the API, `weight` must be 0 or more. A new rule without `weight` goes to the end of the list.
 - Pick one tool per rule. A dashboard edit to a Terraform rule shows as drift on the next plan. Rules
-  that need traffic source or user agent conditions belong to the dashboard.
+  that need traffic source or user agent conditions belong to the dashboard or the API, not Terraform.
+- **400** means an invalid WAF value (`thresholds`, `notify_slack_hits_rpm`). **422** means an invalid
+  field: a condition mode or list (`asn`, `ua`, `traffic_source`), or an `fn_uuid` the rule type
+  cannot run. The response names the field.
 - In `quant rules` manifests, `type: auth` is an **auth function** (API type `auth-function`). In the
   API and Terraform, `auth` is **basic auth** (`auth_user`, `auth_pass`).
 
@@ -222,7 +257,8 @@ jq '{url: (.url + ["/promo-2026"] | unique)}' rule.json |
 | Redirect goes to `/news/$1` literally | The pattern has no `*` | Use `$*`, or add `*` to the pattern |
 | Proxy sends everything to the origin home page | `to` has no placeholder | `https://origin.example.com$*` |
 | Rule scoped by country challenges everyone | Mode field is `any`, so the list is ignored | Set `country: "country_is_not"` (or `country_is`) |
-| Australians on VPN or corporate networks get a bot challenge | Rule scoped by traffic source only | Add `country_is_not: ["AU"]` with mode `country_is_not`; keep the rule dashboard-managed |
+| Australians on VPN or corporate networks get a bot challenge | Rule scoped by traffic source only | Add `country_is_not: ["AU"]` with mode `country_is_not`; keep the rule out of Terraform |
+| Visitors are challenged again after they passed | They changed network (new IPv4 address or IPv6 /64), opened another host, or hold a cookie from before the 2026-10 update | Expected. One pass covers one host, project and network |
 | Change "not working" right after saving | Propagation, or a cached response | Wait a few minutes; test with `?cb=$RANDOM`; purge |
 | Proxied responses never cached | `cache_lifetime` is `"0"` (no-store), or an IP condition (private) | Empty or `-1` to keep origin headers, or a positive number |
 | "502 Proxy Error" page from Quant | Origin timeout or connection failure; `origin_timeout` set in seconds | `origin_timeout` is milliseconds; fix the origin; custom page at `/_quant502` |
@@ -231,7 +267,9 @@ jq '{url: (.url + ["/promo-2026"] | unique)}' rule.json |
 | PATCH removed other URLs or countries | List fields are replaced, not appended | GET, merge, PATCH the full list |
 | Removed header still sent after a PATCH | Action settings are merged | Delete and recreate the rule |
 | 409 from the rules API | Concurrent rules change, or a rule managed in code | Retry; change managed rules through `quant rules` |
-| WAF rate limits off after an API change | A PATCH to a proxy rule resets them | Set them again in the dashboard |
+| A rate limit changed after an API PATCH | The PATCH sent that `thresholds` type (merged by `type`) | GET the rule; send only the types you mean to change |
+| 400 from a proxy rule PATCH | Invalid `thresholds` value (zero `rps`, `hits` or `minutes`) or `notify_slack_hits_rpm` | Send integers of 1 or more; `notify_slack_hits_rpm` 0 turns it off |
+| 422 with `asn`, `ua` or `traffic_source` | Mode not `any`, `<name>_is` or `<name>_is_not`; unknown traffic source; AS number out of range | Fix the field the response names |
 | Auth-protected path returns 503 | The auth function is missing, unpublished or not an auth function | Deploy and publish the function; check the rule's function UUID |
 | `*.example.com` domain rule never matches | Domains are exact host names | List each host name, or `any` |
 

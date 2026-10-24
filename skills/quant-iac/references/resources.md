@@ -36,7 +36,7 @@ Behaviour and field meaning: `quant-rules-and-routing`.
 | `quant_rule_serve_static` | `RuleServeStatic` | Serve static content |
 | `quant_rule_function` | `RuleFunction` | Run an edge function (`fn_uuid`) |
 | `quant_rule_content_filter` | `RuleContentFilter` | Content filter |
-| `quant_rule_bot_challenge` | `RuleBotChallenge` | Bot challenge. Traffic source and user agent conditions are dashboard-only |
+| `quant_rule_bot_challenge` | `RuleBotChallenge` | Bot challenge. Traffic source and user agent conditions are not in the provider (dashboard or rules API) |
 
 ## KV
 
