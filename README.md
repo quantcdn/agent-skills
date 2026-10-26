@@ -1,7 +1,8 @@
 # Quant agent skills
 
 Skills that teach AI coding agents how to use the Quant platform correctly. There are 15
-skills, in the open Agent Skills format. They work with Claude Code, Codex and other agents.
+skills, in the open Agent Skills format. They work with QuantCode, Claude Code, Codex and other
+agents.
 
 ## Platforms
 
@@ -20,12 +21,44 @@ Each skill is a folder under `skills/` with a `SKILL.md` in the open Agent Skill
 
 ## Install
 
-Claude Code:
+### QuantCode
+
+QuantCode is Quant's AI coding assistant (`brew install quantcdn/tap/quantcode`). It reads skills
+from folders on disk; there is no install command.
+
+1. Get the skills:
+
+   ```
+   git clone https://github.com/quantcdn/agent-skills.git
+   ```
+
+2. Copy the skill folders where QuantCode looks for them. For all projects:
+
+   ```
+   mkdir -p ~/.config/quantcode/skills
+   cp -R agent-skills/skills/* ~/.config/quantcode/skills/
+   ```
+
+   For one project, copy them into `.quantcode/skills/` in that repository instead.
+
+3. Check that QuantCode finds them. The list must include `quant-platform`:
+
+   ```
+   quantcode debug skill
+   ```
+
+QuantCode also reads `~/.claude/skills/`, `~/.agents/skills/`, and `.claude/skills/` or
+`.agents/skills/` in a project. If you already installed the skills for Claude Code, QuantCode
+uses them too. Copy again (step 2) to update.
+
+### Claude Code
 
 ```
 /plugin marketplace add quantcdn/agent-skills
 /plugin install quant@quantcdn
 ```
+
+### Other agents
 
 Copy the skills folder: copy the folders in `skills/*` into `.claude/skills` (project) or
 `~/.claude/skills` (all projects), or into `.agents/skills` or the equivalent directory your
