@@ -232,8 +232,21 @@ containers, unless you set `singleTaskOnly`. For zero-downtime deploys on a stat
   belong to UID/GID 1000. If a write fails with permission denied, run the writer
   as UID 1000 (`user: "1000:1000"`, or the base images' `node` / `www-data`) and `chown` image paths
   to 1000. Do not `chmod 777`.
+- **Add a volume to an existing environment:** a new environment copies production's volumes, but
+  an existing environment does not get new volume definitions. Add the volume to each environment
+  that needs it, in one of these ways:
+  - Deploy the changed compose file (compose action plus environment action, the dashboard import,
+    or the API). A redeploy alone does not read the compose file.
+  - In the dashboard, define the volume on the environment's **Volumes** tab. Then, on **Edit
+    Config**, add a mount point for it in the container.
+- **Sensitive files:** put files that must not be public (private uploads, exports, keys) on their
+  own volume, mounted outside the document root. Do not put them in a subdirectory of a public
+  uploads volume.
 - **Backups:** dashboard **Backups** (database and filesystem), `qc backup create|list|download`,
-  or the backup action. A database backup can be restored into another environment of the same app.
+  or the backup action. A filesystem backup includes every volume of the environment. A database
+  backup can be restored into another environment of the same app. Use these backups, not an app
+  module that writes scheduled database dumps to a volume: those dumps grow without limit and stay
+  on the same storage as the site.
 - **Database and filesystem sync:** dashboard **Sync** on the **target** environment, the sync API,
   or the sync action. Syncs that involve production need the `trigger_prod_sync` permission. Back
   up the target first; a sync overwrites it.
@@ -256,6 +269,8 @@ API calls for all of these: [references/api.md](references/api.md).
 | Cache variables missing after attaching | Attachments render on the next deploy | Redeploy |
 | `NOPERM` from the cache | Key written outside `CACHE_PREFIX` | Prefix keys with `CACHE_PREFIX` |
 | `permission denied` writing to a volume | Writer is not UID 1000 | Run as UID 1000; `chown` to 1000 |
+| A directory is missing at runtime, or empty after every deploy | It is not on a volume: the path is not in the image, or the image copy is replaced | Add a volume at that path (see [Run the app](#run-the-app)) |
+| A volume added to `docker-compose.yml` never appears | CI only builds and redeploys; it does not deploy the compose file. Or the environment existed before the volume | Run the compose and environment actions in CI, or add the volume in the dashboard for each environment |
 | Every deploy causes a short outage | Single-task mode, or one task | `singleTaskOnly: false` and min 2 tasks if the app is stateless |
 | CI green but the site shows the old version | Deploy still rolling, or new tasks failing | `qc env list`, `qc env logs`, dashboard **Deployments** |
 | Container exits at once with `exec format error` | Image architecture differs from `quant.architecture` | Build for the matching platform |
@@ -270,6 +285,8 @@ API calls for all of these: [references/api.md](references/api.md).
 - Creating an application: https://docs.quantcdn.io/cloud/02-application-management/01-creating-a-new-application/
 - Environment variables and secrets: https://docs.quantcdn.io/cloud/06-managing-env-vars-and-secrets/01-managing-environment-variables/
 - Persistent storage: https://docs.quantcdn.io/cloud/07-persistent-storage-volumes/01-understanding-persistent-storage/
+  (mount points: `#container-mount-points`); define a volume:
+  https://docs.quantcdn.io/cloud/07-persistent-storage-volumes/03-defining-a-new-volume/
 - Scaling and idle sleep: https://docs.quantcdn.io/cloud/08-scaling-your-application/03-idle-sleep/
 - Startup grace period: https://docs.quantcdn.io/cloud/09-monitoring-application-health/03-startup-grace-period/
 - Cron jobs: https://docs.quantcdn.io/cloud/10-managing-cron-jobs/01-configuring-cron-jobs/
