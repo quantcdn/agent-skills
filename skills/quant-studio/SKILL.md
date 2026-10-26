@@ -107,8 +107,13 @@ deployed. There are two ways to deploy, chosen in **Settings > General > Use Qua
   warning. The workflow deploy produces those assets.
 - After a clean, complete Build & Publish, any route that an earlier Studio publish created and the new build
   no longer produces is unpublished. A build with failures never unpublishes.
-- Studio publish also creates declared KV stores and project settings from `quant/meta.json`, and deploys
-  `quant/edge-functions.json` entries (see `quant-templates`, `quant-edge-functions-and-kv`).
+- Studio publish also creates declared KV stores and project settings from `quant/meta.json`, deploys
+  `quant/edge-functions.json` entries, then applies `quant/edge-rules.json` (see `quant-templates`,
+  `quant-edge-functions-and-kv`). Each part needs a permission of the person who publishes; without it
+  the Deployments page shows that part as `skipped`, with the permission it needs.
+- Page `<script>` blocks get `import.meta.env` replaced at build time, as in `astro build`: `MODE`,
+  `DEV` (false), `PROD`, `SSR` (false), `BASE_URL` (from `base`), `SITE` and `PUBLIC_*` variables from
+  `.env` files. Other variables never reach the browser. `import.meta.url` is left to the browser.
 - **Edge functions are synced as committed source.** For each manifest entry, Studio reads the file at
   `path` from the branch and uploads its text unchanged. Studio publish does not run `npm` scripts,
   package build hooks or a bundler for function files, and the site build does not feed them. A

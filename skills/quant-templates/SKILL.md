@@ -150,7 +150,8 @@ Full key rules, KV value kinds and one-time credentials: [references/meta-json.m
 ## Make your own template
 
 The dashboard template picker lists only repositories in the `quantcdn-templates` organisation. Your
-own template repository is not listed, and its `meta.json` is not applied. To reuse a template
+own template repository is not listed, and its `meta.json` is not applied. The wizard copies only
+the template's default branch, so every file the site needs (including `quant/`) must be on it. To reuse a template
 in your organisation, make it a GitHub template repository, create each site with **Use this template**,
 and follow [Copy a template by hand](#copy-a-template-by-hand). Keep a `meta.json` anyway: it records
 what each site needs, and Studio publish reads its `kv_stores` and `project_settings`.

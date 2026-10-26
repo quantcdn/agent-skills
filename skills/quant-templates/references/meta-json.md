@@ -8,7 +8,7 @@ array that holds one object; both are read the same way.
 | Reader | Keys it applies |
 |---|---|
 | Dashboard template wizard (templates in `quantcdn-templates`) | `secrets` (apps); `kv_stores`, `project_settings` (static) |
-| Studio publish (the Studio site's own repository) | `kv_stores`, `project_settings` |
+| Studio publish (the Studio site's own repository) | `kv_stores`, `project_settings`. It also deploys `quant/edge-functions.json` and `quant/edge-rules.json` |
 | GitHub deploy workflow (`deploy-action`) | None. It reads `quant/edge-functions.json` and `quant/edge-rules.json` |
 
 The app wizard does not read `requires_db`, `requires_cache` or `requires_s3`. It pre-selects a
@@ -105,6 +105,21 @@ Three kinds of initial value:
 Studio publish creates and links declared stores that the project does not link, and writes each
 declared key at most once: a key someone deleted stays deleted. It never creates one-time
 credentials; use the README steps.
+
+Studio publish applies each part only when the person who publishes has the permission for it. A
+part without the permission is not applied, and the Deployments page shows it as `skipped` with the
+missing permission:
+
+| Part | Needs |
+|---|---|
+| Edge functions | Publish itself (`edit_studio`) |
+| `kv_stores` | `kv_admin` and `kv_write` |
+| `project_settings` | `edit_projects` |
+| Rules (`quant/edge-rules.json`) | `add_projects`, and a payment method on a trial organisation |
+
+A Studio content publisher role can therefore publish pages and functions, but not KV, settings or
+rules. Anyone who can push to the branch can change these files; they apply when a user with the
+permission next publishes, so review them in code review.
 
 ## Indexes
 
