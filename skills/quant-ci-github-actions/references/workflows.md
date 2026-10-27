@@ -5,8 +5,8 @@ version in a comment (Quant versions in [actions.md](actions.md)). Replace `exam
 your own.
 
 Gov values: every Quant Cloud action takes `base_url` = the bare dashboard host
-(`https://dash.quantgov.cloud`; the v4 actions also accept `/api/v3`); every content action takes `endpoint` (`https://api.quantgov.cloud/v1`, except
-`search-action` v2.0.0, which takes `https://api.quantgov.cloud`).
+(`https://dash.quantgov.cloud`; the v4 actions and environment-var v1.0.3 also accept `/api/v3`);
+every content action takes `endpoint` = `https://api.quantgov.cloud/v1` (search-action from v2.1.0).
 
 ## Static site
 
@@ -64,7 +64,7 @@ jobs:
           skip-purge: true
 
       - name: Purge
-        uses: quantcdn/purge-action@6010adb4bef33827d7f7d1be8b1d955f693568e4 # v7.0.0
+        uses: quantcdn/purge-action@5c2a85f5318917ef12b9099cf101fe6bd75d0d06 # v7.1.0
         with:
           customer: ${{ vars.QUANT_CUSTOMER }}
           project: ${{ vars.QUANT_PROJECT }}
@@ -149,7 +149,7 @@ jobs:
           base_url: ${{ env.QUANT_BASE_URL }}
 
       - name: Create (cloned from production) or update
-        uses: quantcdn/quant-cloud-environment-action@936fe16373f3169fa15b61a9117ffa87b3996855 # v4.0.0
+        uses: quantcdn/quant-cloud-environment-action@165b2448cafaa28735aa80a13f1e9cdf1c2dcc4f # v4.1.0
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -216,7 +216,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delete the PR environment
-        uses: quantcdn/quant-cloud-environment-action@936fe16373f3169fa15b61a9117ffa87b3996855 # v4.0.0
+        uses: quantcdn/quant-cloud-environment-action@165b2448cafaa28735aa80a13f1e9cdf1c2dcc4f # v4.1.0
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -260,7 +260,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set variables (plain variables, not secrets)
-        uses: quantcdn/quant-cloud-environment-var-action@ce1ea37c9f7e9169c1c70df35ae3fe6f1111e2c9 # v1.0.2
+        uses: quantcdn/quant-cloud-environment-var-action@d9b08f58ad3406a01fbb75725a9065e50a30fa99 # v1.0.3
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -376,15 +376,18 @@ drift handling: `quant-edge-functions-and-kv`.
 
 ```yaml
       - name: Index search records
-        uses: quantcdn/search-action@f84efa8ea7a42ef305751608d6b7dea27d175a7f # v2.0.0
+        uses: quantcdn/search-action@a714ca5316f148e934dca97caf8c4409e6092970 # v2.1.0
         with:
           customer: ${{ vars.QUANT_CUSTOMER }}
           project: ${{ vars.QUANT_PROJECT }}
           token: ${{ secrets.QUANT_TOKEN }}
-          endpoint: https://api.quantgov.cloud    # gov; v2.0.0 adds /v1 itself. Public: omit.
+          endpoint: https://api.quantgov.cloud/v1 # gov (v2.1.0 needs /v1). Public: omit.
           operation: index
-          path: search                            # every *.json file in search/
+          path: search/records.json               # one JSON file (an array of records), not a directory
 ```
+
+If `path` is a directory, the step passes and indexes nothing. Use one step per file, or merge the
+files into one array first (for example `jq -s 'add' search/*.json > search/records.json`).
 
 ## Optional: wait for the deployment in CI
 

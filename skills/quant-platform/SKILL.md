@@ -11,7 +11,7 @@ assumes, and a router to the skill that covers each job.
 ## Applies to
 
 Both platforms: QuantCDN (public) and QuantGov (gov). Tools: the dashboard, `curl`,
-`@quantcdn/quant-cli` 7.0.1 (`quant`), `@quantcdn/quant-cloud-cli` 0.7.0 (`qc`).
+`@quantcdn/quant-cli` 7.0.2 (`quant`), `@quantcdn/quant-cloud-cli` 0.7.2 (`qc`).
 Checked against these versions and the public OpenAPI spec (API 4.25.0), 2026-10.
 
 ## Which platform
@@ -132,7 +132,7 @@ interchangeable.
 | Manage rules from files | `quant rules` (needs `QUANT_API_TOKEN` and `QUANT_BASE_URL={dashboard}/api/v2`) |
 | Manage Quant Cloud apps and environments, variables, logs, shell, exec, backups | `qc` |
 | Build and deploy Quant Cloud apps in CI | Quant Cloud actions v4 (init, environment, compose, state, sync, backup) and environment-var v1 |
-| Declare projects, rules, apps as code | Terraform `quantcdn/quant` v5.14, Pulumi `@quantcdn/pulumi-quant` 5.14 (npm only) |
+| Declare projects, rules, apps as code | Terraform `quantcdn/quant` v5.15, Pulumi `@quantcdn/pulumi-quant` 5.15 (npm only) |
 | Anything else, or a one-off check | The dashboard, or `curl` against the API above |
 
 ### Platform setting for each tool
@@ -147,10 +147,10 @@ interchangeable.
 | `quantcdn/deploy-action` rules deployment | `api-token` with `api-base-url` | A project-scoped token is required together with `api-base-url` | Same |
 | Terraform, Pulumi | `base_url` / `baseUrl` | `https://dashboard.quantcdn.io` | `https://dash.quantgov.cloud` |
 
-- `qc` has no working platform flag. The `--platform` option on commands and the `platform:`
-  key in `.quant.yml` are ignored. Use `qc login` (or `qc login --endpoint <dashboard URL>`,
-  which saves the platform as `custom`), then `qc platform switch`. Run
-  `qc platform current` before you act.
+- `qc`: log in to each platform with `qc login` (or `qc login --endpoint <dashboard URL>` for a
+  custom platform), then `qc platform switch` sets the active one. From `qc` 0.7.1,
+  `--platform <id>` or `platform:` in `.quant.yml` targets another logged-in platform for one
+  command; 0.7.0 and older ignore both. Run `qc platform current` before you act.
 - Use the bare dashboard host for `base_url` on every Quant Cloud action. It works for all of
   them, including the environment variable action (v1.0.2). The v4 actions also accept the
   `/api/v3` form.
@@ -163,7 +163,7 @@ interchangeable.
 | 401 from `{dashboard}/api/v2` or `/api/v3` with a project token | The project token and `Quant-*` headers belong to the content API | Send `Authorization: Bearer <API token>` from the dashboard profile, or use `qc` |
 | 401 from the content API | Missing `Quant-Customer` or `Quant-Project`, or a token for a different project | Send all three `Quant-*` headers with the values for that project |
 | 401 or "not found" with a token that works elsewhere | The token belongs to the other platform | Create the token in the dashboard of the platform that hosts the project |
-| `qc` shows QuantCDN apps for a QuantGov user | `--platform` and `.quant.yml` `platform:` are ignored | `qc login` and choose QuantGov, then `qc platform switch`; check `qc platform current` |
+| `qc` shows QuantCDN apps for a QuantGov user | Active platform is QuantCDN, or `qc` 0.7.0 or older ignored `--platform` | `qc login` and choose QuantGov, then `qc platform switch` (or `--platform quantgov` on 0.7.1+); check `qc platform current` |
 | Terraform or Pulumi API calls fail | `base_url` ends with `/api/v2` or `/api/v3`, so the provider doubles the path | Set `base_url` to the bare dashboard host |
 | A QuantGov Cloud action changes nothing, or the app is not found | `base_url` not set, so the action called QuantCDN | Set `base_url: https://dash.quantgov.cloud` (the bare host) on every Quant Cloud action |
 | An AI model from the public catalogue is missing on QuantGov | QuantGov offers Australian-resident models only | Pick a model from the QuantGov model list; see `quant-ai` |
@@ -179,5 +179,5 @@ interchangeable.
 - Content CLI: https://docs.quantcdn.io/content-cli/get-started/
 - Cloud CLI: https://docs.quantcdn.io/cloud-cli/get-started/
 
-<!-- checked against npm:@quantcdn/quant-cli 7.0.1 -->
-<!-- checked against npm:@quantcdn/quant-cloud-cli 0.7.0 -->
+<!-- checked against npm:@quantcdn/quant-cli 7.0.2 -->
+<!-- checked against npm:@quantcdn/quant-cloud-cli 0.7.2 -->

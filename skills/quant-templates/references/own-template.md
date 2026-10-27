@@ -70,7 +70,8 @@ services:
     depends_on:
       - db
 
-  db:                              # local only; Quant Cloud uses the managed database
+  db:                              # local only; Quant Cloud uses the managed database.
+                                   # The wizard pre-selects a database from this image.
     image: mysql:8.4
     labels:
       quant.type: mysql
@@ -267,11 +268,14 @@ Static + edge: add to the deploy step
 
 ## Checklist
 
-1. `quant/meta.json` with `template_type` and, for apps, `requires_db` and `secrets`.
+1. `quant/meta.json` with `template_type` and, for apps, `requires_db` and `secrets`. The wizard
+   pre-selects a database only from a database service in `docker-compose.yml`.
 2. Apps: `PORT=3001` / `EXPOSE 3000` on `app-node`; port 80 on `app-apache-php`.
 3. Apps: `x-quant-labels` task size and `quant.architecture`; build platform matches.
-4. Apps: local database labelled `quant.type: mysql` or `postgres`; no injected names in
-   `environment:`; local values only in the override example.
+4. Apps: local database labelled `quant.type: mysql` or `postgres`; no injected names and no fixed
+   secrets in `environment:`; local values only in the override example. Declare each secret in
+   `quant/meta.json`, and make the container stop at start-up when a secret is empty (as the
+   Statamic, Craft CMS and EmDash templates do).
 5. Apps: image tag prefix = compose service name.
 6. Static: `dir:` = output directory; `endpoint` from `QUANT_ENDPOINT` for gov.
 7. Edge: a committed `uuid` on every manifest entry; rules use `function_ref`.

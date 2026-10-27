@@ -1,6 +1,6 @@
 # quant commands reference
 
-`@quantcdn/quant-cli` 7.0.1. Checked against the source and `docker run --rm quantcdn/cli:7.0.1 <command> --help`.
+`@quantcdn/quant-cli` 7.0.2. Checked against the source and `docker run --rm quantcdn/cli:7.0.2 <command> --help`.
 Return to [SKILL.md](../SKILL.md).
 
 ## Global options
@@ -83,15 +83,16 @@ A function a rule references through `function_ref` or `function_uuid` needs an 
 - The URL must be HTTPS (HTTP only for localhost), end in `/api/v2`, and have no user info, query or
   fragment. The CLI does not follow redirects.
 - Manifest: `version: 1`, a stable `namespace`, and a `rules` array (up to 100 rules, 64 KiB). Each rule
-  has a unique lowercase `id` (`^[a-z][a-z0-9-]{0,47}$`), `type` (`function`, `auth`, `filter`), `urls`,
-  a numeric `weight` (lower runs first; -100000 to 100000), and `function_ref` (an `id` in the
+  has a unique lowercase `id` (`^[a-z][a-z0-9-]{0,47}$`), `type` (`function`, `auth`, `filter`), `urls`
+  (each starts with `/`), a numeric `weight` (lower runs first; -100000 to 100000), and `function_ref` (an `id` in the
   `--functions` manifest with the same type) or `function_uuid`, not both. Optional: `name`, `domains`,
   `methods`, `disabled`.
 - A deploy changes only rules with the same namespace and `id` and keeps all others. Omit a rule to
   keep it; set `disabled: true` to turn it off.
 - Rules deployed this way are read-only in the dashboard and the rules API. If someone changed one
   outside code, the deploy writes nothing, exits non-zero and lists the changed fields. `--force`
-  overwrites those rules. It never takes over a rule this manifest did not create.
+  overwrites those rules; the token's user must have permission to delete projects, or the API returns
+  403. It never takes over a rule this manifest did not create.
 - `--dry-run` checks permissions and previews without writing.
 - Put authentication rules at a lower `weight` than the functions they protect. A negative weight
   runs before rules added in the dashboard.
@@ -119,7 +120,7 @@ Order: `quant functions ...` first, so the UUIDs exist, then `quant rules ...`.
 
 ## Docker
 
-`docker run --rm -v "$PWD":/site -w /site -e QUANT_CLIENT_ID -e QUANT_PROJECT -e QUANT_TOKEN -e QUANT_ENDPOINT quantcdn/cli:7.0.1 <command>`
+`docker run --rm -v "$PWD":/site -w /site -e QUANT_CLIENT_ID -e QUANT_PROJECT -e QUANT_TOKEN -e QUANT_ENDPOINT quantcdn/cli:7.0.2 <command>`
 
 The entrypoint is `quant`, so pass the command (for example `deploy dist`) without repeating `quant`.
 The image is multi-architecture (amd64, arm64) and sets `NODE_OPTIONS=--max-old-space-size=8192`.

@@ -58,3 +58,15 @@ Must include:
 Must not include:
 - A claim that the GitHub deploy workflow creates KV stores or seeds KV values
 - The content `QUANT_TOKEN` presented as enough for rules
+
+Prompt: I copied the Quant Craft CMS template by hand into our own GitHub repository last week and deployed it to a new Quant Cloud environment. The container now restarts in a loop and the log says `ERROR: CRAFT_SECURITY_KEY is not set to a unique value. Set it as an application secret and redeploy.` An older copy of the same template ran fine with the key from its docker-compose.yml. What is going on and what do I do?
+Platform: public
+Must include:
+- The template ships no fixed secrets: `CRAFT_SECURITY_KEY` and `CRAFT_ADMIN_PASSWORD` are declared in `quant/meta.json` and only the dashboard wizard generates them (on `production`); a hand copy or a new environment must set them as environment secrets
+- At start-up the container refuses an empty secret or a value that an earlier template version published, so the old compose value is refused too
+- Set unique random values as environment secrets, remove any literal values from `docker-compose.yml`, and redeploy; read `CRAFT_ADMIN_PASSWORD` for the first login and change it
+- Changing `CRAFT_SECURITY_KEY` on a live site makes data encrypted with the old key unreadable
+Must not include:
+- Advice to put the old published key back in `docker-compose.yml`
+- Advice to disable or delete the start-up check
+

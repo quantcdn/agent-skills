@@ -40,7 +40,7 @@ Platform: public
 Must include:
 - `country`, `traffic_source`, `ip`, `method` (and `ua`) are mode fields: with the mode `any` (or unset), the matching list is ignored, so `country_is_not` alone does nothing; set `country = "country_is_not"` as well
 - Conditions on one rule are combined with AND: the rule fires only when the country condition and the traffic-source condition both hold
-- Traffic source cannot be set through the rules API or Terraform today; set the traffic-source condition in the dashboard (or accept country-only scoping in code)
+- Terraform cannot set traffic source; set the traffic-source condition in the dashboard or with the rules API (`traffic_source: "traffic_source_is"` with `cloud`, `vpn`, `tor-exit`), or accept country-only scoping in Terraform
 - Verify with a cache-busting request: a challenged request gets a 403 challenge page; a passed challenge sets the `quant_bot_verification` cookie
 Must not include:
 - A claim that filling in the list is enough to scope the rule
@@ -68,3 +68,15 @@ Must include:
 Must not include:
 - A claim that the WAF protects static content served without a proxy rule
 - A vendor or cloud provider name
+
+Prompt: We manage the WAF on our QuantCDN proxy rule with the rules API. Last month a PATCH that changed `allow_rules` switched off our IP rate limit. Now we want to (1) set the per-IP rate limit to 20 requests per second with a 60 second cooldown in block mode without touching the header rate limit, (2) turn the WAF off for a day and later back on with the same settings, and (3) add a condition so the rule ignores traffic from AS 13335. How do we do each through the API?
+Platform: public
+Must include:
+- A PATCH keeps the stored rate limits unless it sends `waf_config.thresholds`; entries are merged by `type`, so sending only `{"type": "ip", "rps": 20, "cooldown": 60, "mode": "block"}` leaves the `header` and `waf_hit_by_ip` limits unchanged
+- To turn one rate limit off, send its type with `mode: "disabled"`; invalid values (for example `rps` 0) return 400
+- `waf_enabled: false` keeps `waf_config`; setting `waf_enabled: true` again restores the same settings
+- The API takes `asn: "asn_is_not"` with `asn_is_not: ["13335"]` (AS numbers as strings); an invalid mode or value returns 422
+Must not include:
+- A claim that a PATCH always turns the rate limits off
+- A claim that ASN conditions can be set only in the dashboard
+

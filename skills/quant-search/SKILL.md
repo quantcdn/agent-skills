@@ -14,13 +14,13 @@ For the platform overview load `quant-platform`.
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Identify the platform by the dashboard URL only; ask the customer if you do not know it. The
 search features are the same on both. Checked 2026-10 against the public docs,
-`@quantcdn/quant-cli` 7.0.1 and `quantcdn/search-action` v2.0.0.
+`@quantcdn/quant-cli` 7.0.1 and `quantcdn/search-action` v2.1.0 (runs `quant` 7.0.1).
 
 | | QuantCDN | QuantGov |
 |---|---|---|
 | Content API (records) | `https://api.quantcdn.io/v1` | `https://api.quantgov.cloud/v1` |
 | `quant -e` value | `https://api.quantcdn.io/v1` (default) | `https://api.quantgov.cloud/v1` |
-| search-action v2.0.0 `endpoint` | `https://api.quantcdn.io` (default) | `https://api.quantgov.cloud` (**no `/v1`**) |
+| search-action v2.1.0 `endpoint` | `https://api.quantcdn.io/v1` (default) | `https://api.quantgov.cloud/v1` (v2.0.0 took it without `/v1`) |
 | Dashboard API (AI Search management) | `https://dashboard.quantcdn.io/api/v3` | `https://dash.quantgov.cloud/api/v3` |
 | AI answers | Models from the Quant AI catalogue | Australian-resident models only |
 
@@ -116,20 +116,20 @@ Do not invent one. For a query API use AI Search.
 
 ```yaml
       - name: Index search records
-        uses: quantcdn/search-action@f84efa8ea7a42ef305751608d6b7dea27d175a7f # v2.0.0
+        uses: quantcdn/search-action@a714ca5316f148e934dca97caf8c4409e6092970 # v2.1.0
         with:
           customer: ${{ vars.QUANT_CUSTOMER }}
           project: ${{ vars.QUANT_PROJECT }}
           token: ${{ secrets.QUANT_TOKEN }}
-          endpoint: https://api.quantgov.cloud   # gov only, no /v1; omit on QuantCDN
-          operation: index                       # index | unindex | status | clear
-          path: search                           # a directory of *.json files, or one file
+          endpoint: https://api.quantgov.cloud/v1  # gov only; omit on QuantCDN
+          operation: index                         # index | unindex | status | clear
+          path: search/records.json                # one JSON file, not a directory
 ```
 
-The released action reads `path`. Its README mentions `index-path` and `unindex-path`; they are not
-inputs of v2, so a workflow that uses them runs green and indexes nothing. A record file that fails
-to upload prints an `Error:` line and the step can still pass: read the log, then confirm with
-`operation: status` or `quant search status`. Pinning, secrets and gov values: `quant-ci-github-actions`.
+The action reads `path`. `index-path` and `unindex-path` are not inputs of v2 (older copies of the
+README named them), so a workflow that uses them runs green and indexes nothing. From v2.1.0 `path`
+for `index` is one JSON file: a directory prints a read error (`EISDIR`) and the step still passes.
+Use one step per file. Read the log, then confirm with `operation: status` or `quant search status`. Pinning, secrets and gov values: `quant-ci-github-actions`.
 
 ## AI Search
 
@@ -225,8 +225,8 @@ snippets from `dash.quantgov.cloud`, and AI answers come from Australian-residen
 | Results link to a preview or other domain | Content was crawled from another host | Set Display URL; delete those pages by pattern; recrawl the real domain |
 | Deleted page still in results | Index not updated | Keyword: `quant search unindex --path /url`; AI Search: delete the page in the Index tab; if a page you deleted from the site stays in the AI index, delete it there too |
 | Keyword records missing | Wrong extractor, or a record missing `title`, `url` or `content` | Check Search, Edit extractors; run `quant search index` and read errors |
-| `quant search index` works, action job green, nothing indexed | The workflow used `index-path`; v2 reads `path` | Use `path`; read the job log; `operation: status` |
-| Action fails on gov | `endpoint` ends in `/v1`; v2.0.0 adds another | `https://api.quantgov.cloud` |
+| `quant search index` works, action job green, nothing indexed | The workflow used `index-path` (v2 reads `path`), or `path` is a directory (v2.1.0 reads one file) | `path` = one JSON file; read the job log; `operation: status` |
+| Action fails on gov | `endpoint` does not match the version: v2.1.0 needs `/v1`; v2.0.0 adds its own | v2.1.0: `https://api.quantgov.cloud/v1` |
 | Facets not shown on the search page | Attribute not declared filterable | `POST /search/facet`, then pick the facet in the page |
 | Filter shows too much or nothing | Field missing from the records, or a typo in the value | Check the field name on the records and the search preview |
 | Cost higher than expected | Frequent crawls or many AI answers | Lower the crawl frequency; limit with rate limits and allowed domains |
@@ -240,4 +240,4 @@ snippets from `dash.quantgov.cloud`, and AI answers come from Australian-residen
 - Related skills: `quant-platform`, `quant-cli`, `quant-ci-github-actions`, `quant-domains-cache-purge`,
   `quant-cms-integrations`, `quant-ai`
 
-<!-- checked against gh:quantcdn/search-action 2.0.0 -->
+<!-- checked against gh:quantcdn/search-action 2.1.0 -->

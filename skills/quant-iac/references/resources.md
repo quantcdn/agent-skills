@@ -1,6 +1,6 @@
 # Resources, Pulumi classes and import IDs
 
-Terraform provider `quantcdn/quant` v5.14.1, Pulumi `@quantcdn/pulumi-quant` 5.14.1. Pulumi imports use
+Terraform provider `quantcdn/quant` v5.15.1, Pulumi `@quantcdn/pulumi-quant` 5.15.1. Pulumi imports use
 the same ID as Terraform. Pulumi type tokens have the form `quant:index:<Class>`, for example
 `pulumi import quant:index:Project site shop-prod`.
 
@@ -36,13 +36,15 @@ Behaviour and field meaning: `quant-rules-and-routing`.
 | `quant_rule_serve_static` | `RuleServeStatic` | Serve static content |
 | `quant_rule_function` | `RuleFunction` | Run an edge function (`fn_uuid`) |
 | `quant_rule_content_filter` | `RuleContentFilter` | Content filter |
-| `quant_rule_bot_challenge` | `RuleBotChallenge` | Bot challenge. Traffic source and user agent conditions are dashboard-only |
+| `quant_rule_bot_challenge` | `RuleBotChallenge` | Bot challenge. Traffic source and user agent conditions are not in the provider (dashboard or rules API) |
 
 ## KV
 
 | Terraform | Pulumi class | Import ID |
 |---|---|---|
-| `quant_kv_store` | `KvStore` | `project/store_id` (a rename replaces the store) |
+| `quant_kv_store` | `KvStore` | `project/store_id` (a rename replaces the store). `format` `1` (default) or `2`, set at create only: a change is a plan error, not a replacement; upgrade with the API, then set `format = 2` |
+| `quant_kv_index` | `KvIndex` | `project/store_id/name` (format 2 store; create waits for `ACTIVE`) |
+| `quant_kv_ledger` | `KvLedger` | `project/store_id/name` (format 2 store; `chains`, `retention_days`, `lock_mode` can only go up; `subject_mode` (`pseudonym` or `clear`) and `subject_case` (`exact` or `fold`) are Optional and Computed, need `subject_field`, and a change is refused at plan time because they are immutable) |
 | `quant_kv_item` | `KvItem` | `project/store_id/key` (`secret = true` for secrets; the value is still in state) |
 
 ## Quant Cloud
@@ -51,7 +53,7 @@ The organisation comes from the provider configuration.
 
 | Terraform | Pulumi class | Import ID |
 |---|---|---|
-| `quant_application` | `Application` | application name |
+| `quant_application` | `Application` | application name. `metadata` (map of labels) is replaced as a whole on update; `metadata_available` is read-only |
 | `quant_environment` | `Environment` | `application/env_name` |
 | `quant_volume` | `Volume` | `application/environment/volume_id` |
 | `quant_cron_job` | `CronJob` | `application/environment/cron_name` |

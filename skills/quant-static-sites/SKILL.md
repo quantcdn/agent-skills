@@ -13,8 +13,8 @@ For the platform overview and the public/gov split, load `quant-platform` first.
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 The features are the same. The only difference you configure is the content API endpoint.
-Checked against `@quantcdn/quant-cli` 7.0.1, `quantcdn/deploy-action` v7.0.1 (runs CLI 7.0.1) and
-`quantcdn/purge-action` v7, 2026-10.
+Checked against `@quantcdn/quant-cli` 7.0.2, `quantcdn/deploy-action` v7.0.1 (runs CLI 7.0.1) and
+`quantcdn/purge-action` v7.1.0 (runs CLI 7.0.1), 2026-10.
 
 | | Public | Gov |
 |---|---|---|
@@ -71,7 +71,7 @@ comment; look up the SHA of the latest release before you change a pin (see `qua
     dir: dist
     revision-log: .quant-revision
     skip-purge: true
-- uses: quantcdn/purge-action@6010adb4bef33827d7f7d1be8b1d955f693568e4 # v7.0.0
+- uses: quantcdn/purge-action@5c2a85f5318917ef12b9099cf101fe6bd75d0d06 # v7.1.0
   with:
     customer: ${{ secrets.QUANT_CUSTOMER }}
     project: ${{ secrets.QUANT_PROJECT }}
@@ -102,7 +102,9 @@ against the Quant templates; the Notes column is general framework guidance.
 | Plain HTML | none | the folder | |
 
 Rules: always deploy the **built** directory, never the project root. Dot-directories such as
-`.output/public` work; the CLI walks everything under `dir`. Any path containing `quant.json` (case-insensitive match) is skipped.
+`.output/public` work; the CLI walks everything under `dir`. From `quant` 7.0.2, every file whose
+name contains `quant.json` (any case, for example `quant.json.bak`) is skipped. Earlier versions,
+including the CLI in deploy-action v7.0.1, can upload such a file. Keep `quant.json` out of `dir`.
 
 ## URL shape and `enableIndexHtml`
 
@@ -270,6 +272,6 @@ A paginated CSV export is in [references/deploy-behaviour.md](references/deploy-
 - Related skills: `quant-platform`, `quant-cli`, `quant-ci-github-actions`, `quant-domains-cache-purge`,
   `quant-templates`, `quant-cms-integrations`, `quant-edge-functions-and-kv`, `quant-rules-and-routing`
 
-<!-- checked against npm:@quantcdn/quant-cli 7.0.1 -->
+<!-- checked against npm:@quantcdn/quant-cli 7.0.2 -->
 <!-- checked against gh:quantcdn/deploy-action 7.0.1 -->
-<!-- checked against gh:quantcdn/purge-action 7.0.0 -->
+<!-- checked against gh:quantcdn/purge-action 7.1.0 -->

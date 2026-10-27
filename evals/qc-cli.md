@@ -5,10 +5,10 @@ Platform: gov
 Must include:
 - `qc login`, then choosing QuantGov (`dash.quantgov.cloud`) in the platform list; browser OAuth flow with a local callback on port 8090 (`-p` changes it)
 - `qc platform current` (and `qc platform list` / `qc platform switch`) to check or change the platform
-- A statement that `--platform` and `platform:` in `.quant.yml` do not select the platform in this CLI version, so the script must rely on `qc platform current` / `switch`
+- `--platform quantgov` and `platform: quantgov` in `.quant.yml` select gov for a command only from `qc` 0.7.1 (0.7.0 and older ignore them), and only when you are logged in to gov; check `qc --version` and `qc platform current`
 - `qc env logs --org example-org --app example-app --env production -f` (or `qc env logs production ...`)
 Must not include:
-- A recommendation to rely on `--platform quantgov` or `platform:` in `.quant.yml` to select the platform
+- A claim that `--platform` works on every `qc` version
 - `dash.quantcdn.io`
 - A claim that `qc` is the content CLI (`quant`)
 
@@ -42,10 +42,10 @@ Must include:
 - `qc backup create --type=database --org example-org --app example-app --env production --description "..."` (type is `database` or `filesystem`; database is the default)
 - `qc env state stop`, `qc env state start`, `qc env state redeploy --tag <imageTag>` with `--org/--app/--env` flags
 - `qc backup download <backupId> --output <dir>` (and `qc backup list` to find the id)
-- Run `qc platform current` first and `qc platform switch` to gov if needed; `--platform` does not do this
+- Run `qc platform current` first and `qc platform switch` to gov if needed, or pass `--platform quantgov` on `qc` 0.7.1 or later
 - Warn that stop makes the environment unavailable
 Must not include:
-- `--platform quantgov` as the way to target gov
+- A claim that `--platform` changes the active platform
 - `quant` (content CLI) commands for backups or environment state
 
 Prompt: From a CI job (no terminal) I need to set `APP_DEBUG=false` and a secret-ish `API_TOKEN` from a CI variable on the `staging` environment of `example-app` (org `example-org`), print the current variables to the job log, read one value into a shell variable, remove `OLD_FLAG`, and make the app pick the changes up. Earlier the same job also ran `qc env create review-42 --org example-org --app example-app --clone-from staging --env review-42` and hung. Give the commands and explain the hang.
@@ -59,5 +59,4 @@ Must include:
 - `qc env create` takes only `--org`/`--app` (no `--env`), and always ends with a "Set ... as active environment?" prompt that hangs a non-interactive job
 Must not include:
 - A claim that `qc env vars set` redeploys the environment
-- A recommendation to use `--platform` to pick the platform
 - A claim that `qc env vars` manages secrets

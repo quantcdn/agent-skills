@@ -1,6 +1,6 @@
 ---
 name: quant-edge-functions-and-kv
-description: Use when writing, deploying or debugging Quant edge functions on QuantCDN or QuantGov - request functions, auth functions (auth middleware), content filters, inline functions (`{{QUANT_FN:uuid}}`) and scheduled functions - or when a function reads or writes a KV store, keeps a secret, counts with `kvStore.increment`, or appends to a KV ledger. Covers the function body contract (`event.request`, `event.geo`, the `quant-client-ip` header, returning a `Response`, `fetch`), auth functions returning 201 to continue, `quant/edge-functions.json` and `quant/edge-rules.json` (UUID identity, `function_ref`, `weight`), deploying with `quantcdn/deploy-action` (`functions`, `rules`, `api-token`, `api-base-url`), KV store IDs and linking, KV limits and errors. Also use when an auth-protected path returns 503, an auth rule lets everyone through, a function sees the wrong path, a KV call says "Access to KV store ... is not allowed", or an inline token is not replaced.
+description: Use when writing, deploying or debugging Quant edge functions on QuantCDN or QuantGov - request functions, auth functions (auth middleware), content filters, inline (`{{QUANT_FN:uuid}}`) and scheduled functions - or when a function uses a KV store (secrets, `increment`, ledgers). Covers the function body contract (`event.request`, `event.geo`, `quant-client-ip`, returning a `Response`), auth functions returning 201 to continue, `quant/edge-functions.json` and `quant/edge-rules.json` (UUID identity, `function_ref`), deploying with `quantcdn/deploy-action` (`functions`, `rules`, `api-token`), KV store IDs and linking, `kvStore.open` handles, `for await` over `list`/`search` with `maxPages`, `KVError` codes, limits and `verifyChain`. Also use when an auth path returns 503, an auth rule lets everyone through, a function sees the wrong path, a KV call says "Access to KV store ... is not allowed", a KV loop throws `LIMIT_EXCEEDED`, a page is empty with `hasMore: true`, or an inline token is not replaced.
 ---
 
 # Edge functions and KV on Quant
@@ -13,8 +13,9 @@ rules that run functions, see `quant-rules-and-routing`. For the `quant function
 ## Applies to
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
-Functions and KV behave the same on both. Checked 2026-10 against `@quantcdn/quant-cli` 7.0.1,
-`quantcdn/deploy-action` v7.0.1 and the public docs.
+Functions and KV behave the same on both. Checked 2026-10-24 against `@quantcdn/quant-cli` 7.0.2,
+`quantcdn/deploy-action` v7.0.1, the edge runtime (including the `kvStore` declarations) and the
+public docs.
 
 | | Public | Gov |
 |---|---|---|
@@ -100,7 +101,7 @@ return new Response(null, { status: 201 }); // 201 = continue to the next rule
 **Note: an auth rule fails closed when its function is unavailable.** If the function is
 missing, has no published revision (it was never published, or it was unpublished or deleted in
 the dashboard or Studio), is not an auth function, or is invalid, Quant returns HTTP 503
-with `Cache-Control: no-store` and a generic body. The request does not reach the content.
+with `Cache-Control: private, no-store` and a generic body. The request does not reach the content.
 
 1. Deploy and publish the function **before** you attach the auth rule.
 2. Give the auth rule a **lower weight** (earlier position) than every rule that serves or
@@ -209,34 +210,60 @@ GitHub Actions (gov values shown; public: `https://api.quantcdn.io/v1` and
 - Rules from the file are read-only in the dashboard. A rule changed there makes the next deploy
   fail with a drift report; `rules-force: true` overwrites it.
 - Without CI: `quant functions quant/edge-functions.json`, then `quant rules ...` (`quant-cli`).
+- **Every deploy path uploads the file at `path` as it is.** `quant functions`, deploy-action and Studio
+  publish (manifest sync) do not compile, bundle or run package scripts. If you generate function code
+  (TypeScript, bundling), build it first and point `path` at the output: commit the output for Studio
+  publish, or build in the same CI job before `quant functions`/deploy-action. Studio publish never
+  runs your build hooks (see `quant-studio`).
   Workflow details: `quant-ci-github-actions`. Terraform and Pulumi: `quant-iac`.
 
 ## KV stores
 
 Create a store in the dashboard (Compute, K/V Stores), the platform API, Terraform
-(`quant_kv_store`) or template setup. Format 2 (the dashboard default) adds indexes,
-conditional writes, transactions and ledgers.
+(`quant_kv_store`) or template setup. Format 2 adds indexes, conditional writes, transactions
+and ledgers. The dashboard (default) and template setup create format 2 stores. The platform API
+and Terraform create format 1 unless you send `"format": 2` (Terraform `format = 2`). Upgrade a
+format 1 store on the store page, **Format & upgrade** tab, or with the upgrade API. Ledger proofs,
+verification and archive downloads are also in the API ([references/kv-api.md](references/kv-api.md#kv-v2-rest-api-format-2-stores-ledgers-upgrade-export)).
 
-- The first argument of every `kvStore` method is the **store ID**, not the display name. The
-  dashboard shows it. Stores that the dashboard and templates create use
+- `kvStore.open()` and every store-ID-first method take the **store ID**, not the display name.
+  The dashboard shows it. Stores that the dashboard and templates create use
   `<organization>-<project>-<name>`, so `${event.quantOrg}-${event.quantProject}-<name>` builds it.
 - A function can use only stores that belong to, or are **linked** to, its project. Any other
-  ID throws `Access to KV store <id> is not allowed`. Link a store to another project in
+  ID throws `KVError` `FORBIDDEN`: `Access to KV store <id> is not allowed`. Link a store to another project in
   Compute, K/V Stores, or with `POST {dashboard}/api/v2/organizations/{org}/projects/{project}/kv/{store_id}/link`.
 - Values are JSON-encoded for you: `set` an object, `get` returns the object. A missing key
   returns `null`.
 
-| Method | Use |
-|---|---|
-| `get(id, key)`, `getEntry(id, key)`, `getMany(id, keys)` | Read; `getEntry` adds timestamps and the `version` |
-| `set(id, key, value, { ttl, secret, ifAbsent, ifVersion })` | Write. `ttl` 60 to 31,536,000 s |
-| `delete(id, key, { ifVersion })` | Delete |
-| `increment(id, key, amount = 1, { ttl })` | Atomic add; returns the new number |
-| `list(id, opts)`, `search(id, opts)` | Pages of keys, 1 to 100 per call, with a `cursor` |
-| `atomic(id)...commit({ idempotencyKey })` | 1 to 25 operations, all or none (format 2) |
-| `append(id, collection, value, { idempotencyKey })` | Add an entry to a ledger |
+Bind the store once with `kvStore.open(id)` and use the handle. The older form with the store ID
+as the first argument (`kvStore.get(id, key)`) still works the same.
 
-Full signatures, limits and error codes: [references/kv-api.md](references/kv-api.md).
+```js
+const kv = kvStore.open(`${event.quantOrg}-${event.quantProject}-app`);
+await kv.set('user:1', { name: 'Ada' }, { ttl: 3600 });
+const user = await kv.get('user:1');                                   // null when missing
+for await (const item of kv.list({ prefix: 'user:' })) console.log(item.key);   // up to 10 pages
+```
+
+| Method (handle form) | Use |
+|---|---|
+| `get(key)`, `getEntry(key)`, `getMany(keys)` | Read. `get` returns the value. `getEntry` returns an entry (value, timestamps, `version`); `getMany` returns entries |
+| `set(key, value, { ttl, secret, ifAbsent, ifVersion })` | Write. `ttl` 60 to 31,536,000 s. `expiration`, `expiresIn`, `maxAge` and similar names throw `VALIDATION`: use `ttl` |
+| `delete(key, { ifVersion })` | Delete |
+| `increment(key, amount = 1, { ttl })` | Atomic add; returns the new number |
+| `list(opts)`, `search(opts)` | One page (`limit` 1 to 1000, default 25) with `cursor`, `hasMore` and `pageEnd`. Also `for await`, `.pages()` and `.items({ maxPages })` |
+| `atomic()...commit({ idempotencyKey })` | 1 to 25 operations, all or none (format 2) |
+| `append(collection, value, { idempotencyKey })` | Add an entry to a ledger |
+| `ledgerStatus(name)`, `ledgerProof(name, key)`, `verifyChain(entries)` | Ledger checks |
+
+- Every method throws `kvStore.KVError` with `code` and `retryable`; test with
+  `e instanceof kvStore.KVError`. Exception: format 1 `get`, `set` and `delete` return `null` or
+  `false` on a store failure.
+- An iteration stops after 10 pages (`maxPages` 1 to 100) and throws `LIMIT_EXCEEDED` with a
+  `cursor` to resume. A page can be short or empty with `hasMore: true` (4 MiB or 10,000 rows read).
+
+Full signatures, options, limits and every error code: [references/kv-api.md](references/kv-api.md).
+Ledgers: [references/kv-ledgers.md](references/kv-ledgers.md).
 
 **Secrets.** Never put API keys in function code or in a manifest. Store them as KV secrets:
 `secret: true` in `kvStore.set`, the dashboard's encrypted option, the API (`"secret": true`)
@@ -253,7 +280,9 @@ acceptable.
 **Ledgers.** A ledger is an append-only, hash-chained collection of a format 2 store. Declare it
 on the store's Ledgers tab; functions `append()` and read with `list()` and `getEntry()`. Entries
 can never change: `set`, `delete`, `increment` and `ttl` on ledger keys fail with
-`LEDGER_IMMUTABLE`. See [references/kv-api.md](references/kv-api.md#ledgers).
+`LEDGER_IMMUTABLE`. `seq` counts per shard, so only a ledger with `chains: 1` has a total order.
+`append` without an `idempotencyKey` gets a generated one, named on the error; retry an unknown
+outcome with it. See [references/kv-ledgers.md](references/kv-ledgers.md).
 
 ## Common problems
 
@@ -265,6 +294,7 @@ can never change: `set`, `delete`, `increment` and `ttl` on ledger keys fail wit
 | Function sees a different path than the visitor requested | Read from `event.url` | Use `new URL(event.request.url).pathname` |
 | `SyntaxError` or the function never runs | Module syntax (`export`, `import`, `addEventListener`) | Write a function body that returns a `Response` |
 | `Access to KV store <id> is not allowed` | Store name instead of ID, or store not linked to this project | Use the full ID; link the store to the project |
+| `Invalid KV store identifier` | The ID has characters other than letters, digits, `-` and `_` (often a display name) | Use the store ID from the dashboard |
 | `kvStore.get` returns `null` for a key that exists | Format 1 store returns `null` on a failed read; wrong store ID | Check the ID; upgrade to format 2, where failures throw `KVError` |
 | `{{QUANT_FN:...}}` shows in the page | Inline functions off, or the token is not a full UUID | Enable inline functions on the project or proxy rule; use the full UUID |
 | Page shows `Invalid edge function.` | The function in the token is not published | Publish the function (deploy it again) |
@@ -272,12 +302,17 @@ can never change: `set`, `delete`, `increment` and `ttl` on ledger keys fail wit
 | Filter changes nothing on a static CSS or JS file, or on a JSON proxy response | Filters skip static files and non-HTML rule responses | Use a function rule for those types |
 | JSON or CSS from a function comes back altered | A filter rule also matches the function's URL; filters run on all function output | Narrow the filter rule's URLs, or skip non-HTML in the filter |
 | Second filter rule ignored | Only the last matching filter applies | Combine the filters into one |
+| Studio publish deployed an old or unbuilt function | Studio uploads the committed file at `path`; it runs no build | Commit the built file, or build in CI and deploy with `quant functions` |
 | A new function appeared after a deploy | The manifest `uuid` changed | Restore the old UUID; delete the extra function in the dashboard |
 | Deploy fails: rules need `api-token` | `rules` set without the platform token | Add `api-token` and `api-base-url` (`{dashboard}/api/v2`) |
 | Rules deploy refused with drift | A managed rule was edited in the dashboard | Change the file, or deploy with `rules-force: true` |
 | Gov deploy uploads to the wrong place | `endpoint` not set | `endpoint: https://api.quantgov.cloud/v1` |
 | Counter off by one after a retry | `increment()` retried after a timeout | Do not retry automatically; use a transaction with `idempotencyKey` |
-| `VALIDATION: Unknown set option` | Misspelt `set()` option | Use `ttl`, `secret`, `ifAbsent` or `ifVersion` |
+| `VALIDATION: Unknown set option` | Misspelt condition or secret option (for example `ifAbsnt`), or an expiry name such as `expiration` (hint `use ttl (seconds)`) | Use `ttl`, `secret`, `ifAbsent` or `ifVersion` |
+| `for await` loop throws `LIMIT_EXCEEDED` | More than `maxPages` pages (default 10) | Resume with `e.cursor`, raise `maxPages` (at most 100), or page across requests |
+| Loop stops early: a page has no items | Code stopped at the first empty page, but `hasMore` is `true` (`pageEnd` `bytes` or `budget`) | Follow `cursor` until `hasMore` is `false`, or use `for await` |
+| `e.name === 'KVError'` checks miss errors, or `instanceof Error` checks are too broad | Old error test | Use `e instanceof kvStore.KVError` and read `e.code` and `e.retryable` |
+| Ledger `append` timed out; unsure if it was written | Outcome unknown (`UNAVAILABLE`) | Retry with the same `idempotencyKey` (from `e.idempotencyKey` if you sent none) |
 
 ## Further reading
 
@@ -289,9 +324,10 @@ can never change: `set`, `delete`, `increment` and `ttl` on ledger keys fail wit
 - KV stores: https://docs.quantcdn.io/compute/kv-stores/
 - KV ledgers: https://docs.quantcdn.io/compute/kv-ledgers/
 - `quant functions` and `quant rules`: https://docs.quantcdn.io/content-cli/commands/functions/
-- Manifests: [references/manifests.md](references/manifests.md); KV API: [references/kv-api.md](references/kv-api.md)
+- Manifests: [references/manifests.md](references/manifests.md); KV API: [references/kv-api.md](references/kv-api.md);
+  KV ledgers: [references/kv-ledgers.md](references/kv-ledgers.md)
 - Related skills: `quant-platform`, `quant-cli`, `quant-rules-and-routing`, `quant-ci-github-actions`,
   `quant-templates`, `quant-iac`
 
-<!-- checked against npm:@quantcdn/quant-cli 7.0.1 -->
+<!-- checked against npm:@quantcdn/quant-cli 7.0.2 -->
 <!-- checked against gh:quantcdn/deploy-action 7.0.1 -->

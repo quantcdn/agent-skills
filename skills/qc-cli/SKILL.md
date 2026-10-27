@@ -12,9 +12,10 @@ scaling), use `quant-cloud-apps`. For static-site and CDN work, use `quant-cli`.
 
 ## Applies to
 
-Both platforms: QuantCDN (public) and QuantGov (gov). `@quantcdn/quant-cloud-cli` 0.7.0, Node.js
-required. Checked against the 0.7.0 source and the cloud-cli pages of the public docs, 2026-10.
-`qc env vars` is new in 0.7.0; run `qc --version` and upgrade if it is missing.
+Both platforms: QuantCDN (public) and QuantGov (gov). `@quantcdn/quant-cloud-cli` 0.7.2, Node.js
+required. Checked against the 0.7.2 source and the cloud-cli pages of the public docs, 2026-10.
+`qc env vars` is new in 0.7.0, and `--platform` works from 0.7.1. Run `qc --version` and upgrade
+if you have an older version.
 
 `qc` is the **cloud** CLI. It does not push static content, purge the CDN cache or manage edge
 rules. `quant` (skill `quant-cli`) does those. The two tools use different credentials.
@@ -23,7 +24,7 @@ rules. `quant` (skill `quant-cli`) does those. The two tools use different crede
 
 ```bash
 npm install -g @quantcdn/quant-cloud-cli
-qc --version              # 0.7.0
+qc --version              # 0.7.2
 # or, without installing:
 npx @quantcdn/quant-cloud-cli
 ```
@@ -52,7 +53,7 @@ npx @quantcdn/quant-cloud-cli
 
 ### Check the platform before you act
 
-The platform comes only from what you chose in `qc login` and `qc platform switch`.
+The active platform comes from what you chose in `qc login` and `qc platform switch`.
 
 ```bash
 qc platform list          # every platform you are logged in to
@@ -61,9 +62,20 @@ qc platform switch        # pick another (interactive)
 qc platform remove        # forget one
 ```
 
-**Known issue (0.7.0):** the `--platform` option on commands and a `platform:` key in `.quant.yml`
-are accepted but ignored. Do not use them to target gov or public. Run `qc platform current`
-before any command that changes something, especially if you are logged in to both platforms.
+From 0.7.1, `--platform <id>` or `platform: <id>` in `.quant.yml` runs one command against another
+platform that you are logged in to. Priority: the flag, then `.quant.yml`, then the active platform.
+This does not change the active platform. Read the ids (`quantcdn`, `quantgov`, or a custom id)
+from `qc platform list`.
+
+```bash
+qc env logs production --org example-org --app example-app --platform quantgov -f
+```
+
+- If you are not logged in to that platform, the command fails: `Not logged in to platform <id>.`
+  Run `qc login` and choose it.
+- `qc org` commands have no `--platform` option. Use `platform:` in `.quant.yml` for them.
+- In 0.7.0 and earlier the flag and the key were accepted but **ignored**. Check `qc --version`
+  before you rely on them, and run `qc platform current` before any command that changes something.
 
 ## The model: org, app, env
 
@@ -255,7 +267,8 @@ with `${PIPESTATUS[0]}` in bash (or `set -o pipefail`), because the pipeline hid
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Commands hit the wrong platform, or `--platform quantgov` has no effect | `--platform` and `platform:` in `.quant.yml` are ignored by 0.7.0 | `qc platform current`, then `qc platform switch` |
+| Commands hit the wrong platform, or `--platform quantgov` has no effect | `qc` 0.7.0 or older ignores `--platform` and `platform:` in `.quant.yml`; or a `.quant.yml` names another platform | Upgrade to 0.7.1 or later; check `qc platform current` and `.quant.yml` |
+| `Not logged in to platform <id>` | `--platform` or `.quant.yml` names a platform with no saved login | `qc login` and choose that platform; ids from `qc platform list` |
 | `qc login` waits forever or cannot start | No browser on the machine, or port 8090 is busy | Log in on a workstation, or use `qc login -p <port>` |
 | `qc login` shows a menu instead of the platform list | A platform is already saved | Choose Add another platform, or Re-authenticate |
 | `No organization/application/environment specified` | Nothing in flags, `.quant.yml` or saved context | Pass `--org --app --env`, or run the `select` commands |
@@ -285,4 +298,4 @@ with `${PIPESTATUS[0]}` in bash (or `set -o pipefail`), because the pipeline hid
 - Related skills: `quant-platform` (public vs gov), `quant-cloud-apps` (build and configure
   apps), `quant-cli` (content CLI), `quant-ci-github-actions` (CI instead of `qc`)
 
-<!-- checked against npm:@quantcdn/quant-cloud-cli 0.7.0 -->
+<!-- checked against npm:@quantcdn/quant-cloud-cli 0.7.2 -->

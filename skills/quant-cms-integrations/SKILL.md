@@ -152,8 +152,8 @@ the platform injects. The database connection uses TLS when the platform certifi
 
 | App | On a volume |
 |---|---|
-| `app-drupal` | `./src/web/sites/default/files:/opt/drupal/web/sites/default/files` |
-| `app-drupal-cms` | `drupal_cms:/opt/drupal` (code, modules, files) |
+| `app-drupal` | `./src/web/sites/default/files:/opt/drupal/web/sites/default/files` and `drupal_private:/opt/drupal/private` (private files) |
+| `app-drupal-cms` | `drupal_cms:/opt/drupal` (code, modules, files, and private files in `/opt/drupal/private`) |
 | `app-wordpress` | `./wp-content:/var/www/html/wp-content` and `wordpress_data:/var/www/html` |
 
 Keep these entries in `docker-compose.yml`, not in the override file (the override is local only).
@@ -161,6 +161,22 @@ Volumes are shared by all tasks and owned by UID 1000. On `app-drupal-cms` and `
 volume keeps its files when you rebuild the image, so code from a new image does not replace the
 code already on the volume: update WordPress core, plugins and themes with `wp` or wp-admin, and
 Drupal CMS with Composer or the update UI inside the environment.
+
+**Drupal private files.** `$settings['file_private_path']` must name a directory that exists at
+runtime, is outside the docroot, and is on a volume. The usual path is `/opt/drupal/private`
+(`dirname(DRUPAL_ROOT) . '/private'`). A path such as `../private` that is not in the image and
+not on a volume does not exist, and the status report shows "The directory ../private does not
+exist" and "Private files directory: Not fully protected".
+
+1. Add a volume mounted at `/opt/drupal/private` to every environment (`quant-cloud-apps`,
+   "Add a volume to an existing environment").
+2. Point `file_private_path` at it. To set it per environment, read a variable:
+   `getenv('DRUPAL_PRIVATE_PATH') ?: dirname(DRUPAL_ROOT) . '/private'`.
+3. Run `drush cr` after the deploy, so Drupal registers `private://` and writes its `.htaccess`.
+
+Never put private files under `sites/default/files`: that is the public files directory. Filesystem
+backups include every volume. Do not schedule backup_migrate (or a similar module) to write
+database dumps to `private://`; use platform backups (`quant-cloud-apps`).
 
 **Mail.** Set these on the environment (put the password in a secret):
 `QUANT_SMTP_HOST`, `QUANT_SMTP_PORT` (587), `QUANT_SMTP_USERNAME`, `QUANT_SMTP_PASSWORD`,
@@ -259,6 +275,7 @@ Hide the editorial host: an unguessable name, basic authentication, IP limits or
 | Static copy looks unstyled | CSS/JS aggregation or optimiser plugin writes absolute URLs | Disable Autoptimize or Page Optimize (WordPress), Divi minify; re-push |
 | Drupal "The provided host name is not valid for this server" | Domain missing from `trusted_host_patterns` | Add it in `src/settings.php`, redeploy |
 | Uploads or plugins disappear after a redeploy | The directory is not on a volume | Mount it as in [Files on volumes](#cms-on-quant-cloud) |
+| Drupal status report: "The directory ../private does not exist" | `file_private_path` names a path that is not in the image and not on a volume | Add a volume at `/opt/drupal/private`, point `file_private_path` at it, `drush cr` ([Drupal private files](#cms-on-quant-cloud)) |
 | WordPress admin redirects to the platform host name or loops | Fixed `WP_HOME`/`siteurl` in the database or `wp-config.php` | Remove the fixed values; the template derives them from the request host |
 | Mail is not delivered | `QUANT_SMTP_HOST` unset, wrong port, or provider rejects the From domain | Set the variables; check task logs (`qc-cli`) |
 | `DB_*` values ignored | `DB_*` set in the deployed `environment:` | Remove them; keep them in the override file |

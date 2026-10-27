@@ -4,7 +4,7 @@ Prompt: Write the GitHub Actions workflow for my Hugo site on QuantCDN (dashboar
 Platform: public
 Must include:
 - `quantcdn/deploy-action@9bf8cae8497ab6628d4b248db9eb11464f37e1e5` with the comment `# v7.0.1`
-- `quantcdn/purge-action@6010adb4bef33827d7f7d1be8b1d955f693568e4` with the comment `# v7.0.0`, `url_pattern: "/*"`
+- `quantcdn/purge-action@5c2a85f5318917ef12b9099cf101fe6bd75d0d06` with the comment `# v7.1.0`, `url_pattern: "/*"`
 - `dir: public` (relative to the workspace)
 - The project token (from the project's Integrations page) is a secret; customer and project names are not sensitive and can be variables
 - If the build fails, the job stops before the deploy step, because a deploy of a partial or empty directory unpublishes every page that is not in it
@@ -34,8 +34,8 @@ Platform: public
 Must include:
 - The actions ask the platform to deploy and return; they do not wait for the new containers to become healthy, so a green run does not prove the release is live
 - Confirm the release with `qc env list` (running vs desired), `qc env logs`, and the dashboard Deployments tab (or the environment's `deploymentStatus` from the API)
-- The environment action sends `minCapacity` and `maxCapacity` (default 1) on every create and update, which replaces the scaling set in the dashboard; pass `min_capacity` and `max_capacity`, or skip the update step when the compose file did not change
-- `quant-cloud-environment-var-action` v1.0.2 does not strip `/api/v3` (unlike the v4 actions), so a value ending `/api/v3` doubles the path; use the bare host `https://dashboard.quantcdn.io` or omit `base_url` (the default is the bare public host)
+- Environment action v4.0.0 and earlier send `minCapacity` and `maxCapacity` (default 1) on every create and update, which replaces the scaling set in the dashboard; v4.1.0 sends them only when `min_capacity`/`max_capacity` are set, so pin v4.1.0 by SHA (or pass both inputs)
+- `quant-cloud-environment-var-action` v1.0.2 and earlier do not strip `/api/v3`, so a value ending `/api/v3` doubles the path; v1.0.3 strips it, so pin v1.0.3 by SHA, or use the bare host `https://dashboard.quantcdn.io` (or omit `base_url`; the default is the bare public host)
 Must not include:
 - A claim that a green run proves the new version is live
 - Names a cloud vendor or managed service
@@ -58,8 +58,8 @@ Platform: gov
 Must include:
 - The environment variable action sets plain environment variables, not secrets; anyone with access to the environment can read the value. Put `STRIPE_SECRET` in the environment's secrets in the dashboard instead
 - Changed variables or secrets reach the containers only after a redeploy (state action `action: redeploy`)
-- The variable action's `base_url` is the bare gov dashboard host `https://dash.quantgov.cloud` (no `/api/v3`)
-- `search-action@v2` (v2.0.0) adds `/v1` to its `endpoint` itself, so the gov value is `https://api.quantgov.cloud` without `/v1`
+- The variable action's `base_url` is the gov dashboard: the bare host `https://dash.quantgov.cloud` (v1.0.3 also accepts `/api/v3`)
+- `search-action` v2.1.0 takes the gov `endpoint` with `/v1` (`https://api.quantgov.cloud/v1`), and `path` is one JSON file per step (a directory indexes nothing), so the files are indexed one step each or merged into one file first
 Must not include:
 - A claim that the environment variable action stores secrets or hides the value
-- `endpoint: https://api.quantgov.cloud/v1` on `search-action@v2`
+- `endpoint: https://api.quantgov.cloud` without `/v1` on search-action v2.1.0

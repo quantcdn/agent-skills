@@ -1,6 +1,6 @@
 ---
 name: quant-templates
-description: Use when choosing, starting from, copying or writing a Quant starter template (the `quantcdn-templates` GitHub organisation) on QuantCDN or QuantGov - which template fits (app template on Quant Cloud, static SSG template, or static + edge functions and KV such as `ssg-astro-edge-saas`), what the dashboard template wizard sets up (repository, project or application, GitHub secrets and variables, database, KV stores), the `quant/meta.json` keys (`template_type`, `requires_db`, `requires_cache`, `requires_s3`, `secrets`, `kv_stores`, `project_settings`), copying a template by hand, and making your own template (layout, Dockerfile, override example, `build-deploy.yaml`, `quant.architecture` vs build platform). Also use when a workflow copied from a template deploys into the wrong application or environment or pins `quant-cloud-compose-action@v1`, when a site copied from a template lacks its database, secrets or KV stores, or when a container built from a template exits with `exec format error`.
+description: Use when choosing, starting from, copying or writing a Quant starter template (the `quantcdn-templates` GitHub organisation) on QuantCDN or QuantGov - which template fits (app template on Quant Cloud, static SSG template, or static + edge functions and KV such as `ssg-astro-edge-saas`), what the dashboard wizard sets up (repository, project or application, GitHub secrets and variables, database, KV stores), the `quant/meta.json` keys (`template_type`, `requires_db`, `requires_cache`, `requires_s3`, `secrets`, `kv_stores`, `project_settings`), copying a template by hand, and making your own template (layout, Dockerfile, workflow, build platform). Also use when a workflow copied from a template deploys into the wrong application or environment or pins `quant-cloud-compose-action@v1`, when a site copied from a template lacks its database, secrets or KV stores, when a container stops with "is not set to a unique value", or when a container built from a template exits with `exec format error`.
 ---
 
 # Quant templates
@@ -16,8 +16,8 @@ and the public/gov split, load `quant-platform` first.
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 The templates are the same. Checked 2026-10 against the public, non-archived `quantcdn-templates`
 repositories, `quant-cloud-init-action` v4.0.1, `quant-cloud-compose-action` v4.0.0,
-`quant-cloud-environment-action` v4.0.0, `quant-cloud-environment-state-action` v4.0.1 and
-`deploy-action` v7.0.1.
+`quant-cloud-environment-action` v4.1.0, `quant-cloud-environment-state-action` v4.0.1,
+`deploy-action` v7.0.1 and `purge-action` v7.1.0.
 
 | | Public | Gov |
 |---|---|---|
@@ -68,15 +68,25 @@ application, stores the credentials in the repository, and triggers the first de
 
 | Kind | Secrets | Variables |
 |---|---|---|
-| Static | `QUANT_TOKEN` | `QUANT_CUSTOMER`, `QUANT_PROJECT` |
-| Static + edge | `QUANT_TOKEN`, `QUANT_API_TOKEN` (project-scoped rules token) | as static, plus `QUANT_BASE_URL` (`{dashboard}/api/v2`) |
-| App | `QUANT_API_KEY`, `QUANT_ORGANIZATION` | `QUANT_APPLICATION`, `QUANT_BASE_URL` |
+| Static | `QUANT_TOKEN` (the project's deploy token) | `QUANT_CUSTOMER`, `QUANT_PROJECT`; on gov also `QUANT_ENDPOINT` |
+| Static + edge | as static, plus `QUANT_API_TOKEN` (rules token) | as static, plus `QUANT_BASE_URL` (`{dashboard}/api/v2`) |
+| App | `QUANT_API_KEY`, `QUANT_ORGANIZATION` | `QUANT_APPLICATION`, `QUANT_BASE_URL` (`{dashboard}/api/v3`) |
 
-The wizard also applies the template's `quant/meta.json`: it offers a managed database when the
-template sets `requires_db`, generates the declared `secrets`, and for static templates creates the
-declared KV stores. It removes the template-maintenance workflow (`ci.yml`) from your copy. Every
-later push to `main` deploys. On gov, check that the deploy and purge steps of a static site have
-`endpoint: https://api.quantgov.cloud/v1`, and add it if they do not.
+The rules token is issued only when the repository has `quant/edge-rules.json`. It is scoped to the
+one project (`projects:read`, `rules:read`, `rules:write`) and expires after 365 days.
+
+The wizard also sets up what the template needs:
+
+- **Apps:** it pre-selects a managed database when `docker-compose.yml` has a database service
+  (`image: mysql`, `postgres` or `mariadb`); the engine follows that service, default MySQL. It
+  generates the `secrets` from `quant/meta.json` on the `production` environment.
+- **Static:** it creates the KV stores and applies `project_settings` from `quant/meta.json`.
+- **Gov static:** it sets `QUANT_ENDPOINT` and adds `endpoint: ${{ vars.QUANT_ENDPOINT }}` to the
+  deploy and purge steps that have no `endpoint`.
+- It removes the template-maintenance files (`ci.yml`, `ci-develop.yml`, `.github/dependabot.yml`).
+
+App containers refuse to start without their generated secrets (see [Secrets in app templates](#secrets-in-app-templates)).
+Every later push to `main` deploys.
 
 ## Copy a template by hand
 
@@ -91,17 +101,15 @@ Use this when you fork or copy a template on GitHub instead of using the wizard.
    name; without it the app workflow uses the repository name. On gov set `QUANT_BASE_URL` to
    `https://dash.quantgov.cloud/api/v3` (apps) and add `endpoint: https://api.quantgov.cloud/v1` to the
    deploy and purge steps (static).
-3. Create what `meta.json` declares: secrets on the environment, KV stores (create, link to the
-   project, write initial values), and project settings such as inline functions.
+3. Create what `meta.json` declares: secrets on the environment, KV stores (create in format 2,
+   declare the indexes, link to the project, write initial values), and project settings such as inline functions.
 4. Check the build architecture (apps): the template compose files declare
-   `quant.architecture: ARM64`, but the template workflows build `linux/amd64` unless you set the
-   `BUILD_PLATFORM` variable. Set `BUILD_PLATFORM=linux/arm64` (with an ARM runner or a QEMU step),
-   or change `quant.architecture` to `X86_64`. See [Build platform](#build-platform-apps).
-5. Laravel and Symfony: `app-laravel` (`APP_KEY`) and `app-symfony` (`APP_SECRET`) ship a fixed,
-   published default value in the compose `environment:`. Before the first deploy, generate a unique
-   secret, set it as an environment secret, and remove the default from the compose file. If a site
-   already runs with the published value, rotate it.
-6. Delete `ci.yml` if you like: it maintains the template itself (publishes its image or checks its build).
+   `quant.architecture: ARM64`, and the template workflows build `linux/arm64` by default (QEMU on
+   `ubuntu-latest`). For faster native builds, set the variable `RUNNER_TYPE=ubuntu-24.04-arm`. See
+   [Build platform](#build-platform-apps).
+5. Set every secret that `quant/meta.json` declares as an environment secret, with your own random
+   value ([Secrets in app templates](#secrets-in-app-templates)). The container does not start without them.
+6. Delete `ci.yml` (and `ci-develop.yml` if present) if you like: it maintains the template itself.
 7. Push to `main`. The init action maps `main` to the `production` environment.
 
 **Check the copied workflow before the first push.** An app workflow must deploy only into your
@@ -110,12 +118,13 @@ application and the environment its branch maps to:
 - `quant_application: ${{ vars.QUANT_APPLICATION || github.event.repository.name }}`. Do not hard-code
   another application name as the default.
 - No fixed environment name. Without an override the init action maps `main` to `production`,
-  `develop` to `develop`, and other branches to an environment of the branch name.
+  `develop` to `develop`, and other branches to an environment of the branch name. The templates pass
+  `environment_name_override: ${{ vars.QUANT_ENVIRONMENT_OVERRIDE }}`; leave that variable unset.
 - Only the steps your deploy needs: checkout, QEMU and Buildx, init, build and push, compose,
   environment, state. Settings such as scaling or idle sleep belong on the environment (dashboard or
   API), not in each deploy.
-- Quant Cloud actions at `@v4`. The template workflows pin `quantcdn/quant-cloud-compose-action@v1`;
-  `@v4` is the current major with the same inputs and output, so you can change it when you copy.
+- Quant Cloud actions at `@v4`, as the current templates use. Older copies pin
+  `quantcdn/quant-cloud-compose-action@v1`; change it to `@v4` (same inputs and output).
 - `platforms:` matches `quant.architecture` ([Build platform](#build-platform-apps)).
 
 ## `quant/meta.json`
@@ -124,12 +133,11 @@ The file is an object, or an array with one object (both are read the same way).
 
 | Key | Kinds | Effect |
 |---|---|---|
-| `template_type` | all | `"app"`, `"ssg"`, or `"base"` (a base image, not a starting point) |
-| `requires_db` | app | `true`: the wizard provisions a managed database (MySQL or Postgres) |
-| `requires_cache` | app | `true`: the wizard pre-selects a managed cache (injects `REDIS_*`, `CACHE_PREFIX`) |
-| `requires_s3` | app | `true`: the wizard pre-selects object storage (injects `S3_*`) |
-| `secrets` | app | `[{"name": "X", "generate": "random", "length": 64}]`: a random value of `length` characters, set as a secret on the `production` environment |
-| `kv_stores` | static | Stores to create, seed and link; see [references/meta-json.md](references/meta-json.md) |
+| `template_type` | all | `"app"`, `"ssg"`, or `"base"` (a base image, not a starting point). Records the kind; the pickers list repositories by name (`app-*`, `ssg-*`) |
+| `requires_db` | app | Records that the app needs a database. The wizard does not read it: it pre-selects a database from the compose file |
+| `requires_cache`, `requires_s3` | app | Recorded only. The wizard does not read them; add a cache or object storage yourself |
+| `secrets` | app | `[{"name": "X", "generate": "random", "length": 64}]`: a random value of `length` characters (16-256, default 64), set as a secret on the `production` environment |
+| `kv_stores` | static | Stores to create, seed and link, with optional indexes; see [references/meta-json.md](references/meta-json.md) |
 | `project_settings` | static | Only `{"enable_inline_fn": true}`; setup only turns settings on |
 | `title`, `summary`, `content`, `image`, `categories`, `tags`, `url` | all | Describe the template. No effect on what is created |
 
@@ -142,7 +150,8 @@ Full key rules, KV value kinds and one-time credentials: [references/meta-json.m
 ## Make your own template
 
 The dashboard template picker lists only repositories in the `quantcdn-templates` organisation. Your
-own template repository is not listed, and its `meta.json` is not applied. To reuse a template
+own template repository is not listed, and its `meta.json` is not applied. The wizard copies only
+the template's default branch, so every file the site needs (including `quant/`) must be on it. To reuse a template
 in your organisation, make it a GitHub template repository, create each site with **Use this template**,
 and follow [Copy a template by hand](#copy-a-template-by-hand). Keep a `meta.json` anyway: it records
 what each site needs, and Studio publish reads its `kv_stores` and `project_settings`.
@@ -188,15 +197,16 @@ Full `Dockerfile`, compose, override and workflow files: [references/own-templat
 | `ARM64` (the templates) | `linux/arm64` | `ubuntu-24.04-arm` (native), or `ubuntu-latest` with `docker/setup-qemu-action@v4` (slower) |
 | `X86_64` | `linux/amd64` | `ubuntu-latest` |
 
-The template workflows read `vars.BUILD_PLATFORM` (default `linux/amd64`) and `vars.RUNNER_TYPE`
-(default `ubuntu-latest`), and have no QEMU step. The compose files declare `ARM64`, so the defaults
-do not match. Choose one and keep the two in step:
+The template workflows read `vars.BUILD_PLATFORM` (default `linux/arm64`) and `vars.RUNNER_TYPE`
+(default `ubuntu-latest`), and have a `docker/setup-qemu-action` step. The compose files declare
+`ARM64`, so the defaults match. Keep the two in step:
 
-- Keep `ARM64`: set the variable `BUILD_PLATFORM=linux/arm64`, and either set
-  `RUNNER_TYPE=ubuntu-24.04-arm` or add a `docker/setup-qemu-action` step before Buildx.
-- Use x86: change `quant.architecture` to `X86_64` in `x-quant-labels` and keep `linux/amd64`.
+- Keep `ARM64`: change nothing, or set `RUNNER_TYPE=ubuntu-24.04-arm` for native builds.
+- Use x86: change `quant.architecture` to `X86_64` in `x-quant-labels` and set
+  `BUILD_PLATFORM=linux/amd64`.
 
-If you change the architecture later, change both.
+If you change the architecture later, change both. An older copy of a template workflow can default
+to `linux/amd64` and have no QEMU step: check it.
 
 An ARM64 build on an x86 runner uses emulation and is slower. Use an ARM runner (`RUNNER_TYPE`), or
 build architecture-independent output (static assets, JS bundles) in a `FROM --platform=$BUILDPLATFORM`
@@ -223,23 +233,57 @@ quant/edge-rules.json               # edge templates: rules (function_ref = mani
   when `QUANT_API_TOKEN` and `QUANT_BASE_URL` exist. Format and deploy: `quant-edge-functions-and-kv`.
 - The README of a template with a one-time credential must say how to replace a lost one.
 
+## Secrets in app templates
+
+App templates ship no fixed secrets. Each secret is declared in `quant/meta.json`, and the wizard
+generates a random value on the `production` environment when you deploy:
+
+| Template | Generated secrets |
+|---|---|
+| `app-statamic`, `app-laravel` | `APP_KEY` |
+| `app-symfony` | `APP_SECRET` |
+| `app-craft-cms` | `CRAFT_SECURITY_KEY`, `CRAFT_ADMIN_PASSWORD` (first install only) |
+| `app-emdash` | `EMDASH_AUTH_SECRET`, `EMDASH_PREVIEW_SECRET` |
+| `app-payloadcms` | `PAYLOAD_SECRET` |
+
+- Statamic, Craft CMS and EmDash check their secrets at start-up. If a secret is empty, or holds a
+  value that an earlier template version published, the container stops with
+  `ERROR: <NAME> is not set to a unique value. Set it as an application secret and redeploy.`
+- Craft CMS installs on first start with `CRAFT_ADMIN_PASSWORD`. Read it from the environment's
+  secrets for the first login, then change the password in the control panel.
+- Locally, put your own values in `docker-compose.override.yml` (copy the `.example` file). Generate
+  them, for example `openssl rand -hex 32`; Laravel and Statamic: `php artisan key:generate --show`.
+- Copied by hand, or a new environment: set the secrets yourself (only the wizard generates them,
+  and only on `production`).
+
+**Older copies.** A copy made before 2026-10-24 can still set a literal value for these variables in
+`docker-compose.yml`. That value overrides the environment secret. Delete the lines, set unique
+environment secrets, and redeploy. After you take the start-up check into such a site, it refuses
+the published values until you set new ones.
+
+**Warning:** do not change `APP_KEY` or `CRAFT_SECURITY_KEY` on a live site without a plan. A new
+key logs every user out, and data encrypted with the old key cannot be read. If a live site uses a
+published value, rotate it anyway, then enter the affected settings again and change the admin
+password.
+
 ## Common problems
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Container exits at once: `exec format error` | Image built for `linux/amd64`, task is `ARM64`: the template workflows default `BUILD_PLATFORM` to `linux/amd64`, while the compose files declare `ARM64` | Set `BUILD_PLATFORM=linux/arm64` (ARM runner or QEMU step), or set `quant.architecture: X86_64` |
+| Container exits at once: `exec format error` | Image built for `linux/amd64`, task is `ARM64`: `BUILD_PLATFORM` is set to `linux/amd64`, or the workflow is an older copy that defaults to it | Build `linux/arm64` (ARM runner or QEMU step), or set `quant.architecture: X86_64` |
 | Deploy lands in another application, or in an environment that does not match the branch | The copied init step hard-codes an application default or an environment override | Default to `vars.QUANT_APPLICATION`, else the repository name; remove the override |
 | Copied app workflow fails at the environment step | The Quant Cloud application does not exist yet, or `QUANT_APPLICATION` names another one | Create the application first; set `QUANT_APPLICATION` |
 | Workflow fails at init: organisation not found or no registry credentials, on gov | `QUANT_BASE_URL` not set, so it calls the public dashboard | Variable `QUANT_BASE_URL` = `https://dash.quantgov.cloud/api/v3` |
 | Static deploy 401/403 on gov | No `endpoint` on deploy and purge | `endpoint: https://api.quantgov.cloud/v1` (or `vars.QUANT_ENDPOINT`) |
-| App has no `DB_*` variables | Copied by hand; `requires_db` is applied only by the wizard | Create the app with a managed database |
+| App has no `DB_*` variables | Copied by hand, or the compose file has no database service, so the wizard did not pre-select one | Add a managed database to the application (dashboard or API) |
 | `PAYLOAD_SECRET` (or another declared secret) missing | Copied by hand; `secrets` are generated only by the wizard | Set the secret on the environment, then redeploy |
 | Edge template: `Access to KV store ... is not allowed` | Copied by hand; store not created or not linked | Create the store, link it to the project, seed values |
 | Edge template: rules never appear | No `QUANT_API_TOKEN` / `QUANT_BASE_URL`, so the workflow skips `rules` | Add a project-scoped token (`projects:read`, `rules:read`, `rules:write`) and `{dashboard}/api/v2` |
 | Lost the one-time owner key from setup | Only its hash is stored | Follow the template README's reset steps |
-| Laravel or Symfony site runs with the template's `APP_KEY` or `APP_SECRET` | The compose file ships a fixed, published default | Generate a unique secret, set it on the environment, remove the default, redeploy; rotate on existing sites |
+| Container stops: `ERROR: <NAME> is not set to a unique value` | A declared secret is missing (copied by hand, new environment) or still holds a published default | Set a unique environment secret and redeploy ([Secrets in app templates](#secrets-in-app-templates)) |
+| Statamic, Craft CMS or EmDash site runs with a key from the template | An older copy sets a literal value in `docker-compose.yml` | Delete the lines, set unique secrets, redeploy; rotate on existing sites |
 | Image pull fails: tag not found | Workflow tag prefix differs from the compose service name | Tag `<service>-<suffix>` |
-| Template not in the dashboard picker | Not in `quantcdn-templates`, or no `template_type` | Use **Use this template** and copy by hand |
+| Template not in the dashboard picker | Not a public `app-*` or `ssg-*` repository in `quantcdn-templates` | Use **Use this template** and copy by hand |
 
 ## Further reading
 
@@ -254,3 +298,4 @@ quant/edge-rules.json               # edge templates: rules (function_ref = mani
 
 <!-- checked against gh:quantcdn/quant-cloud-compose-action 4.0.0 -->
 <!-- checked against gh:quantcdn/deploy-action 7.0.1 -->
+<!-- checked against gh:quantcdn/quant-cloud-environment-action 4.1.0 -->

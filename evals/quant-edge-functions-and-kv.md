@@ -56,3 +56,36 @@ Must include:
 Must not include:
 - A claim that the token works without enabling inline functions
 - Edge Side Include `<esi:include>` tags as the Quant syntax
+
+Prompt: My Quant edge function writes sessions with `kvStore.set(STORE, key, session, { expiration: 3600 })` but the keys never expire. It also lists a user's orders with `kvStore.search(STORE, { prefix: 'order:', where: { userId }, limit: 50 })` and sometimes gets an empty page. I created the store with the platform API. What is wrong?
+Platform: gov
+Must include:
+- `expiration` is not a `set()` option; use `ttl` in seconds (60 to 31,536,000). Expiry-like names such as `expiration` throw `VALIDATION` with the hint `use ttl (seconds)` (older runtimes ignored them, so the keys never expired)
+- `limit` is the most items one page returns (1 to 1000); one call reads at most 10,000 rows (and 4 MiB), so a filtered page can be short or empty while `hasMore` is `true` (`pageEnd` `budget` or `bytes`); follow `cursor` until `hasMore` is `false`, or iterate with `for await`
+- A store created with the platform API (or Terraform) is format 1; a format 2 store (dashboard default, or an upgrade on the store's Format & upgrade tab) lists a collection in id order
+Must not include:
+- A claim that an empty page means there are no more results
+- A claim that every unknown `set()` option throws `VALIDATION`
+- `limit` capped at 100
+
+Prompt: In a Quant edge function I need to read every key with the prefix `user:` from our format 2 KV store `acme-web-app` and handle KV errors properly. Today I repeat the store ID in every call and write my own cursor loop, and I check `e.name === 'KVError'`. Show me the modern way, including what happens when there are more pages than expected.
+Platform: public
+Must include:
+- `const kv = kvStore.open('acme-web-app')` returns a handle with the same methods without the store ID; `open` makes no request
+- `for await (const item of kv.list({ prefix: 'user:' }))` reads items across pages (also `.pages()` and `.items({ maxPages })`)
+- One iteration fetches at most 10 pages by default (`maxPages` 1 to 100); past that it throws `KVError` `LIMIT_EXCEEDED` with a `cursor` to resume
+- Test errors with `e instanceof kvStore.KVError` and read `e.code` and `e.retryable`
+Must not include:
+- A claim that the iterator reads an unlimited number of pages
+- `env.KV`, `KV.list` or another platform's KV binding syntax
+
+Prompt: Our Quant edge function appends audit events to a KV ledger with `kvStore.append(STORE, 'audit', event)`. Sometimes the call fails with UNAVAILABLE and we do not know if the entry was written. Also an auditor asked how we can show that no entries are missing in a week's export. What should we do?
+Platform: gov
+Must include:
+- Pass an `idempotencyKey` (1 to 64 of letters, digits, `-`, `_`); without one Quant generates a key per call and puts it on the error (`e.idempotencyKey`); retry an unknown outcome only with that same key, which returns the first receipt (`replayed: true`) instead of a second entry
+- `verifyChain(entries)` checks the entries the function read for gaps, forks and broken `prevHash` links per shard (at most 10,000 entries), with no request
+- `verifyChain` does not prove that Quant stored the entries unchanged, and a clean partial window says nothing outside it; use `ledgerProof` (archived entries) for evidence of authenticity
+- `seq` counts per shard; only a ledger with `chains: 1` has a total order
+Must not include:
+- A claim that a retry without the same `idempotencyKey` is safe
+- A claim that `verifyChain` alone proves the ledger is complete and untampered

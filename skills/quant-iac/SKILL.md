@@ -14,8 +14,8 @@ For the platform overview, load `quant-platform`.
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Identify the platform by the dashboard URL only; ask the customer if you do not know it. Checked
-2026-10 against Terraform `quantcdn/quant` v5.14.1 (validated with `terraform validate`) and
-`@quantcdn/pulumi-quant` 5.14.1 (type-checked with `tsc`).
+2026-10 against Terraform `quantcdn/quant` v5.15.1 (validated with `terraform validate`) and
+`@quantcdn/pulumi-quant` 5.15.1 (type-checked with `tsc`).
 
 | | QuantCDN (public) | QuantGov |
 |---|---|---|
@@ -34,7 +34,7 @@ terraform {
   required_providers {
     quant = {
       source  = "quantcdn/quant"
-      version = "~> 5.14"
+      version = "~> 5.15"
     }
   }
 }
@@ -118,7 +118,7 @@ Terraform name, Pulumi class (`quant.<Class>`), and every import ID: [references
 | CDN project | `quant_project`, `quant_domain`, `quant_header` (project-wide custom headers), data sources `quant_project` (can return the write token) and `quant_projects` |
 | Crawler | `quant_crawler`, `quant_crawler_schedule` |
 | Rules | `quant_rule_redirect`, `quant_rule_proxy`, `quant_rule_headers`, `quant_rule_auth` (basic auth), `quant_rule_custom_response`, `quant_rule_serve_static`, `quant_rule_function`, `quant_rule_content_filter`, `quant_rule_bot_challenge` |
-| KV | `quant_kv_store`, `quant_kv_item` |
+| KV | `quant_kv_store` (`format`), `quant_kv_item`, `quant_kv_index`, `quant_kv_ledger`; data sources `quant_kv_ledger`, `quant_kv_ledger_public_key` |
 | Quant Cloud | `quant_application`, `quant_environment`, `quant_volume`, `quant_cron_job` |
 | AI | `quant_ai_agent`, `quant_ai_agent_overlay`, `quant_ai_custom_tool`, `quant_ai_governance`, `quant_ai_skill`, `quant_ai_vector_collection`, `quant_ai_vector_document`, `quant_slack_bot`. Arguments and models: `quant-ai` |
 
@@ -168,9 +168,10 @@ anything that differs.
   so two `quant_header` blocks for one project overwrite each other.
 - **Set `name` and `project` on every rule.** They are optional in the schema and filled in from the
   API when omitted, so a config without them can look correct and still be missing the project.
-- **Keep traffic-source-scoped bot challenge rules dashboard-managed.** Traffic source and user agent
-  conditions are not in the provider or the rules API. A rule that uses them stays in the dashboard;
-  do not import it and then edit it there. If code must own a bot challenge rule, scope it by country.
+- **Keep traffic-source-scoped bot challenge rules out of Terraform.** Traffic source and user agent
+  conditions are not in the provider (the rules API sets them, see `quant-rules-and-routing`). A rule
+  that uses them stays in the dashboard or the API; do not import it and then edit it there. If
+  Terraform must own a bot challenge rule, scope it by country.
 - **`auth` means basic auth in Terraform.** `quant_rule_auth` takes `auth_user` and `auth_pass`; a
   `type: auth` rule in a `quant rules` manifest is an auth function, a different rule. Rules that
   `quant rules` or the deploy-action `rules` input manage should not also be in Terraform.
@@ -268,7 +269,7 @@ new quant.Application("app", {
 | "Missing QuantCDN API bearer token" or "organization" | No `bearer`/`organization` argument and no `QUANTCDN_*` variable in the shell or CI job | Export `QUANTCDN_API_TOKEN` and `QUANTCDN_ORGANIZATION` |
 | 401 or 403 on every call | Token from the other platform, a project `Quant-Token`, or a token without permission | Create a dashboard API token on the platform that `base_url` points at |
 | Calls reach the wrong platform | `base_url` unset (default is the public dashboard) | Set `base_url` / `quant:baseUrl` for gov |
-| "does not support resource type `quant_application`" (or kv, environment...) | Old version pinned (for example `~> 1.0`), or a local development build overrides the registry provider | Use `~> 5.14`, run `terraform init -upgrade`, remove `dev_overrides` from the CLI config |
+| "does not support resource type `quant_application`" (or kv, environment...) | Old version pinned (for example `~> 1.0`), or a local development build overrides the registry provider | Use `~> 5.15`, run `terraform init -upgrade`, remove `dev_overrides` from the CLI config |
 | "Invalid import ID": "the ID must follow the pattern project/uuid" | Wrong number of parts, or a name where the UUID/ID is needed | Use the ID table; rule IDs are `project/uuid`, domain IDs `project/numeric_id` |
 | "Provider returned invalid result object after apply" | Provider bug: a computed attribute stayed unknown | See the section above |
 | Plan shows changes after a dashboard edit | Drift on a managed resource | Copy the value into the config, or stop managing it in Terraform; never both |
@@ -286,5 +287,5 @@ new quant.Application("app", {
 - Related skills: `quant-platform`, `quant-rules-and-routing`, `quant-domains-cache-purge`,
   `quant-cloud-apps`, `quant-edge-functions-and-kv`, `quant-ci-github-actions` (run Terraform in CI), `quant-ai`
 
-<!-- checked against tf:quantcdn/quant 5.14.1 -->
-<!-- checked against npm:@quantcdn/pulumi-quant 5.14.1 -->
+<!-- checked against tf:quantcdn/quant 5.15.1 -->
+<!-- checked against npm:@quantcdn/pulumi-quant 5.15.1 -->

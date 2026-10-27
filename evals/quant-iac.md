@@ -55,7 +55,7 @@ Must not include:
 Prompt: We manage our QuantCDN rules in Terraform. A colleague added a bot challenge rule limited to cloud-hosting traffic sources in the dashboard and now our `terraform plan` keeps showing changes to the redirect rules and the project headers. We also want Terraform to create that bot challenge rule. What is going on, and what is the right split between Terraform and the dashboard?
 Platform: public
 Must include:
-- Traffic source (and user agent) conditions can be set only in the dashboard; the provider and rules API do not take them, so a bot challenge rule scoped by traffic source stays dashboard-managed and is not declared in Terraform
+- Traffic source (and user agent) conditions are not in the Terraform provider (only the dashboard and the rules API set them), so a bot challenge rule scoped by traffic source stays out of Terraform and is not declared there
 - Rules that Terraform manages are compared on every plan; dashboard edits show as drift, and apply overwrites them; keep one tool per rule
 - `quant_header` (project headers) is one resource per project and its `headers` map is replaced as a whole, so headers added in the dashboard are removed on apply
 - Use `terraform plan -refresh-only` (or plain `terraform plan`) to see what changed; put the wanted value into the configuration or stop managing the rule in Terraform
