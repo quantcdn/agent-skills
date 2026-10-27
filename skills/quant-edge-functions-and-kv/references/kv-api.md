@@ -267,7 +267,7 @@ Base: `{dashboard}/api/v2/organizations/{organization}/projects/{project}`, with
 | `DELETE /kv/{store_id}/link` | Remove a linked store from this project (403 for the project that owns the store) |
 | `GET /kv/{store_id}/items?cursor=&limit=&search=&include_values=` | List keys |
 | `POST /kv/{store_id}/items` (`{ "key", "value", "secret" }`) | Add an item. `value` is a string; send JSON as a string |
-| `GET`, `PUT`, `DELETE /kv/{store_id}/items/{key}` | Read, update or delete an item |
+| `GET`, `PUT`, `DELETE /kv/{store_id}/items/{key}` | Read, update or delete an item. `GET` parses a value that is valid JSON, so the string `"3"` comes back as the number `3`. For the exact stored string, use `GET /items/{key}/entry` |
 | `DELETE /kv/{store_id}/items?prefix=&older_than=` | Delete many items |
 
 These item routes are the original store API. The format 2 features (versions, conditional writes,
@@ -275,9 +275,8 @@ indexes, ledgers, upgrades, exports) are the routes below.
 
 ## KV v2 REST API (format 2 stores, ledgers, upgrade, export)
 
-<!-- Public API specification 4.28.0. Verify each VERIFY-ON-PROD item on production before you rely on this section. -->
-
-Same base and token as above. Every route is under `/kv/{store_id}`. Token scopes:
+Same base and token as above. Every route is under `/kv/{store_id}`, except the archive purge
+routes. A token with a custom scope list also needs `projects:read`. Token scopes:
 
 | Scope | Allows |
 |---|---|
@@ -286,6 +285,7 @@ Same base and token as above. Every route is under `/kv/{store_id}`. Token scope
 | `kv:ledger:append` | `POST /append` |
 | `kv:ledger:admin` | Declare, raise and drop a ledger. Must be given explicitly: a full-access token, or a token without a scope list, cannot use it |
 | `kv:ledger:erase` | Subject preview and shred. Explicit, like `kv:ledger:admin` |
+| `kv:ledger:purge` | Start an archive purge, together with `kv:ledger:admin` ([below](#purge-the-archive-of-a-deleted-store)). Explicit |
 
 Your role also needs the matching permission (for example `ledger_read`, `ledger_append`). Errors are
 JSON with `code`, `message` and `retryable` (codes as in [Errors](#errors), plus `SCOPE_REQUIRED`,
@@ -294,8 +294,6 @@ export; ledger declare, raise and drop) share a limit of 10 requests per minute 
 `429 RATE_LIMITED`, wait `Retry-After` seconds.
 
 ### Create a format 2 store
-
-<!-- VERIFY-ON-PROD: POST /kv accepts "format": 2 and creates a format 2 store; omitting it creates format 1. -->
 
 ```bash
 BASE=https://dashboard.quantcdn.io/api/v2/organizations/$ORG/projects/$PROJECT   # gov: dash.quantgov.cloud
@@ -308,8 +306,6 @@ store, use the upgrade route. Terraform: `quant_kv_store` with `format = 2` (see
 
 ### Upgrade a format 1 store
 
-<!-- VERIFY-ON-PROD: POST /kv/{store_id}/upgrade actions start (with dryRun), rollback, finalize and resume; GET shows the phase. -->
-
 | Call | Does |
 |---|---|
 | `GET /upgrade` | The store format (1 or 2), state (`active`, or `migrating` while writes are frozen) and the latest upgrade (`phase`, `total`, `copied`, `invalidKeys`, `oversizeKeys`, `retainUntil`) |
@@ -319,7 +315,8 @@ store, use the upgrade route. Terraform: `quant_kv_store` with `format = 2` (see
 | `POST /upgrade` `{"action": "finalize"}` | After `retainUntil` (14 days after the switch): delete the format 1 copy. No rollback after this |
 | `POST /upgrade` `{"action": "resume"}` | Queue the current step again when `phase` has not changed for more than 960 seconds |
 
-Limits: 100,000 items and 1 GiB. Poll `GET /upgrade` until the phase is final. On `503 UNAVAILABLE`
+A `resume` with nothing to resume, or a `finalize` before `retainUntil`, is `409 UPGRADE_CONFLICT`.
+A rollback ends at phase `rolled_back`. Limits: 100,000 items and 1 GiB. Poll `GET /upgrade` until the phase is final. On `503 UNAVAILABLE`
 after `start`, `rollback` or `finalize`, read `GET /upgrade` before you send anything again.
 
 ### Entries, queries and indexes
@@ -356,11 +353,9 @@ you write again.
 
 ### Download the archive and verify offline
 
-<!-- VERIFY-ON-PROD: GET /kv/{store_id}/ledgers/{name}/archive returns presigned links, 100 objects per page, digests on the first page. -->
-
 ```bash
 curl -s "$BASE/kv/$STORE/ledgers/audit/archive" -H "Authorization: Bearer $QUANT_API_TOKEN" > page1.json
-# page1.json: objects[], digests[] and timestamps[] (first page), next_cursor, next_digest_cursor, digestsTruncated
+# page1.json: objects[] (url each), digests[] (url, sigUrl) and timestamps[] on the first page, next_cursor, next_digest_cursor; digestsTruncated when true
 curl -s "$BASE/kv/$STORE/ledgers/public-key" -H "Authorization: Bearer $QUANT_API_TOKEN" |
   jq -r .publicKeyPem > key.pem
 ```
@@ -378,3 +373,23 @@ curl -s "$BASE/kv/$STORE/ledgers/public-key" -H "Authorization: Bearer $QUANT_AP
 |---|---|
 | `POST /export`; `GET /export`; `POST /export/resume` | Export the whole store to gzip JSON Lines (one at a time, up to 1 GiB). `GET` shows the phase and, when `done`, download links valid for 1 hour. With a ledger in the store, exports also need `kv:ledger:read` |
 | `GET /usage` | Read and write units per day for 30 days, size and a cost estimate |
+
+### Purge the archive of a deleted store
+
+A deleted store's ledger archive stays until its retention ends, and the store name stays reserved
+(`STORE_NAME_RETAINED`) until the archive is gone. These routes are under the organisation, not a
+project: `{dashboard}/api/v2/organizations/{organization}/kv/archives`. They need the explicit
+`kv:ledger:admin` scope, `projects:read`, the `ledger_admin` permission, and a token with no
+project restriction.
+
+| Call | Does |
+|---|---|
+| `GET /kv/archives` | Deleted stores that still hold archive objects (`limit` 1 to 100, `cursor`) |
+| `GET /kv/archives/{store_name}` | Archive status: `deletedAt`, `earliestPurgeAt` (the name is not free before then), `retainedUntil`, the latest purge |
+| `POST /kv/archives/{store_name}/purge` `{"confirm": "<store_name>", "dryRun": true, "reason"}` | `dryRun` is `true` by default: 200 with the counts, nothing deleted. `"dryRun": false` starts the purge: 202 with `purgeId`. Also needs `kv:ledger:purge`. Send an `Idempotency-Key` header; a repeat returns the same purge. Cannot be undone |
+| `GET /kv/archives/{store_name}/purges/{purge_id}` | Poll until `state` is `COMPLETE`, `RETAINED`, `BLOCKED` or `CANCELLED` |
+| `GET .../purges/{purge_id}/receipt`; `GET .../purges/{purge_id}/manifest` | The signed receipt (`409 PURGE_NOT_COMPLETE` before `COMPLETE`); the manifest pages of deleted object versions, with links valid for 1 hour |
+
+Nothing is deleted while any object is still locked: the purge ends as `RETAINED`, and a new start
+within 1 hour of a `RETAINED` result is `429 RATE_LIMITED`. The limit is 10 requests per minute per
+organisation. The receipt is Quant's signed statement that the purge ran, not a proof of absence.
