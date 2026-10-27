@@ -53,7 +53,7 @@ The organisation comes from the provider configuration.
 
 | Terraform | Pulumi class | Import ID |
 |---|---|---|
-| `quant_application` | `Application` | application name |
+| `quant_application` | `Application` | application name. `metadata` (map of labels) is replaced as a whole on update; `metadata_available` is read-only |
 | `quant_environment` | `Environment` | `application/env_name` |
 | `quant_volume` | `Volume` | `application/environment/volume_id` |
 | `quant_cron_job` | `CronJob` | `application/environment/cron_name` |

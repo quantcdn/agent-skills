@@ -69,6 +69,7 @@ jq -Rs '{compose: .}' docker-compose.yml |
 | `filesystem` | Optional shared filesystem: `{"required": true, "mountPath": "/mnt/data"}` |
 | `environment` | Optional initial variables for `production`: `[{"name": "...", "value": "..."}]` |
 | `minCapacity`, `maxCapacity` | Default 1 and 1 |
+| `metadata` | Optional key/value labels, for example `{"team": "web", "owner": "ops"}` ([Application metadata](#application-metadata)) |
 
 Send `database` exactly in this shape. A field with another name (`db`, `mysql`) or a non-object
 value does not create a database. The create call is asynchronous: confirm afterwards that the
@@ -85,6 +86,22 @@ app has a database (dashboard: environment details shows the database; the Backu
 | `minCapacity`, `maxCapacity` | Task count range |
 | `singleTaskOnly` | `true`: at most one running task. `false`: scaling allowed. Omitted: the platform turns it on when it detects stateful containers |
 | `startupGracePeriodSeconds` | Default 120, 0 to 3600 |
+
+## Application metadata
+
+Key/value labels on an application (for example owner, team, cost centre). They are for people
+and filters only: they change nothing at runtime.
+
+| Call | Does |
+|---|---|
+| `GET $BASE/organizations/$ORG/applications/$APP` | `metadata` and `metadataAvailable` (`false` when the labels could not be read) |
+| `GET $BASE/organizations/$ORG/applications?metadata[team]=web` | Filter the list. Exact, case-sensitive; several pairs must all match |
+| `PATCH .../applications/$APP/metadata` `{"team": "web", "old": null}` | Set the given keys; a `null` value removes the key |
+| `PUT .../applications/$APP/metadata` `{...}` | Replace the whole set; `{}` removes every key |
+
+Limits: at most 50 pairs; keys 1 to 128 characters, values 0 to 256; letters, digits, space and
+`+ - = . _ : / @` only. Keys that start with `quant:` are reserved. A request that breaks a rule is
+refused whole (400). Terraform and Pulumi: the `metadata` argument of `quant_application`.
 
 ## Environments
 
