@@ -132,7 +132,7 @@ interchangeable.
 | Manage rules from files | `quant rules` (needs `QUANT_API_TOKEN` and `QUANT_BASE_URL={dashboard}/api/v2`) |
 | Manage Quant Cloud apps and environments, variables, logs, shell, exec, backups | `qc` |
 | Build and deploy Quant Cloud apps in CI | Quant Cloud actions v4 (init, environment, compose, state, sync, backup) and environment-var v1 |
-| Declare projects, rules, apps as code | Terraform `quantcdn/quant` v5.14, Pulumi `@quantcdn/pulumi-quant` 5.14 (npm only) |
+| Declare projects, rules, apps as code | Terraform `quantcdn/quant` v5.15, Pulumi `@quantcdn/pulumi-quant` 5.15 (npm only) |
 | Anything else, or a one-off check | The dashboard, or `curl` against the API above |
 
 ### Platform setting for each tool
