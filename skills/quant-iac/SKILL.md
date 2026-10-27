@@ -269,7 +269,7 @@ new quant.Application("app", {
 | "Missing QuantCDN API bearer token" or "organization" | No `bearer`/`organization` argument and no `QUANTCDN_*` variable in the shell or CI job | Export `QUANTCDN_API_TOKEN` and `QUANTCDN_ORGANIZATION` |
 | 401 or 403 on every call | Token from the other platform, a project `Quant-Token`, or a token without permission | Create a dashboard API token on the platform that `base_url` points at |
 | Calls reach the wrong platform | `base_url` unset (default is the public dashboard) | Set `base_url` / `quant:baseUrl` for gov |
-| "does not support resource type `quant_application`" (or kv, environment...) | Old version pinned (for example `~> 1.0`), or a local development build overrides the registry provider | Use `~> 5.14`, run `terraform init -upgrade`, remove `dev_overrides` from the CLI config |
+| "does not support resource type `quant_application`" (or kv, environment...) | Old version pinned (for example `~> 1.0`), or a local development build overrides the registry provider | Use `~> 5.15`, run `terraform init -upgrade`, remove `dev_overrides` from the CLI config |
 | "Invalid import ID": "the ID must follow the pattern project/uuid" | Wrong number of parts, or a name where the UUID/ID is needed | Use the ID table; rule IDs are `project/uuid`, domain IDs `project/numeric_id` |
 | "Provider returned invalid result object after apply" | Provider bug: a computed attribute stayed unknown | See the section above |
 | Plan shows changes after a dashboard edit | Drift on a managed resource | Copy the value into the config, or stop managing it in Terraform; never both |
