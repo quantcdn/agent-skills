@@ -1,7 +1,7 @@
 # Quant AI with Terraform
 
 Provider setup, versions, Pulumi names and import IDs are in `quant-iac`. This file shows the AI
-resources together. Checked against `quantcdn/quant` v5.14.1 resource docs.
+resources together. Checked against `quantcdn/quant` v5.15.1 (validated with `terraform validate`).
 
 ## Resources
 

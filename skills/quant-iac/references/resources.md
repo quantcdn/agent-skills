@@ -1,6 +1,6 @@
 # Resources, Pulumi classes and import IDs
 
-Terraform provider `quantcdn/quant` v5.14.1, Pulumi `@quantcdn/pulumi-quant` 5.14.1. Pulumi imports use
+Terraform provider `quantcdn/quant` v5.15.1, Pulumi `@quantcdn/pulumi-quant` 5.15.1. Pulumi imports use
 the same ID as Terraform. Pulumi type tokens have the form `quant:index:<Class>`, for example
 `pulumi import quant:index:Project site shop-prod`.
 
