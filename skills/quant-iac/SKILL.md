@@ -14,8 +14,8 @@ For the platform overview, load `quant-platform`.
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Identify the platform by the dashboard URL only; ask the customer if you do not know it. Checked
-2026-10 against Terraform `quantcdn/quant` v5.15.1 (validated with `terraform validate`) and
-`@quantcdn/pulumi-quant` 5.15.1 (type-checked with `tsc`).
+2026-10 against Terraform `quantcdn/quant` v5.15.2 (validated with `terraform validate`) and
+`@quantcdn/pulumi-quant` 5.15.2 (type-checked with `tsc`).
 
 | | QuantCDN (public) | QuantGov |
 |---|---|---|
@@ -287,5 +287,5 @@ new quant.Application("app", {
 - Related skills: `quant-platform`, `quant-rules-and-routing`, `quant-domains-cache-purge`,
   `quant-cloud-apps`, `quant-edge-functions-and-kv`, `quant-ci-github-actions` (run Terraform in CI), `quant-ai`
 
-<!-- checked against tf:quantcdn/quant 5.15.1 -->
-<!-- checked against npm:@quantcdn/pulumi-quant 5.15.1 -->
+<!-- checked against tf:quantcdn/quant 5.15.2 -->
+<!-- checked against npm:@quantcdn/pulumi-quant 5.15.2 -->
