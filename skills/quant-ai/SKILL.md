@@ -14,7 +14,7 @@ This skill covers using them as a customer. For the platform overview load `quan
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Identify the platform by the dashboard URL only; ask the customer if you do not know it. Features
 are the same; QuantGov offers Australian-resident models only. Checked 2026-10 against the public
-docs, the public API specification (4.25.0) and Terraform `quantcdn/quant` v5.15.1.
+docs, the public API specification (4.25.0) and Terraform `quantcdn/quant` v5.15.2.
 
 | | QuantCDN | QuantGov |
 |---|---|---|
@@ -311,4 +311,4 @@ guardrail presets follow the Australian PSPF classifications (OFFICIAL, OFFICIAL
   skills, vector database, workflows, webhook secrets, governance, filter policies, Slack bots, MCP servers)
 - Related skills: `quant-platform`, `quant-search`, `quant-iac`, `quant-edge-functions-and-kv`
 
-<!-- checked against tf:quantcdn/quant 5.15.1 -->
+<!-- checked against tf:quantcdn/quant 5.15.2 -->
