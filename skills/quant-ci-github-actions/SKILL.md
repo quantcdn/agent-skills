@@ -127,6 +127,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - name: Set up QEMU for non-native or multi-architecture builds
+        if: ${{ contains(vars.BUILD_PLATFORM, ',') || (runner.arch == 'X64' && (vars.BUILD_PLATFORM || 'linux/amd64') != 'linux/amd64') || (runner.arch == 'ARM64' && (vars.BUILD_PLATFORM || 'linux/amd64') != 'linux/arm64') }}
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Initialize Quant Cloud      # validates access and logs Docker in to the registry
@@ -142,7 +146,7 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          platforms: ${{ vars.BUILD_PLATFORM || 'linux/arm64' }}   # must match quant.architecture
+          platforms: ${{ vars.BUILD_PLATFORM || 'linux/amd64' }}   # must match quant.architecture
           push: true
           # Tag prefix = compose service name ("app"); main -> app-latest, develop -> app-develop
           tags: ${{ steps.init.outputs.stripped_endpoint }}/${{ secrets.QUANT_ORGANIZATION }}/${{ steps.init.outputs.quant_application }}:app-${{ steps.init.outputs.image_suffix_clean }}
@@ -201,6 +205,25 @@ How the init action maps the Git ref (the image tag is `<service>-<image_suffix_
   are set. Leave them out to keep the scaling set in the dashboard. v4.0.0 and earlier sent 1 for
   each on every create and update, which reset the scaling to one task. Pin v4.1.0 to stop that.
 - `operation: create` also updates an environment that exists; `update` fails if it does not.
+
+### Architecture and runner choice
+
+Match the environment to the pushed image: `X86_64` needs `linux/amd64`, `ARM64` needs
+`linux/arm64`. The current customer template workflow defaults to single-architecture amd64
+on `ubuntu-latest`; published Quant template images are multi-architecture. Customer source
+builds push into the application's own internal registry.
+
+Set `BUILD_PLATFORM` to the target and `RUNNER_TYPE` to the runner label. For ARM64 on Quant
+Cloud, recommend the customer's own native ARM64 runner (for example `RUNNER_TYPE=quant-arm64`
+and `BUILD_PLATFORM=linux/arm64`). QEMU on x86_64 can be much slower for compilation and
+compression. Keep a conditional QEMU step for cross-architecture or multi-architecture builds;
+skip it for a native single-architecture build. The runner needs Docker and Buildx.
+
+Workflows with per-environment selection read `BUILD_PLATFORMS` (JSON keyed by the Quant
+environment name) before `BUILD_PLATFORM`. Preserve other entries when changing one environment.
+Older workflow copies require the selection and QEMU steps; setting a variable alone does not
+add emulation. Build the new variant before deploying an architecture change, and inspect the
+registry index with `docker buildx imagetools inspect <image>` to verify the target exists.
 
 ## Pull request environments
 

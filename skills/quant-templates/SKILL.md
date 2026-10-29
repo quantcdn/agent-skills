@@ -103,10 +103,9 @@ Use this when you fork or copy a template on GitHub instead of using the wizard.
    deploy and purge steps (static).
 3. Create what `meta.json` declares: secrets on the environment, KV stores (create in format 2,
    declare the indexes, link to the project, write initial values), and project settings such as inline functions.
-4. Check the build architecture (apps): the template compose files declare
-   `quant.architecture: ARM64`, and the template workflows build `linux/arm64` by default (QEMU on
-   `ubuntu-latest`). For faster native builds, set the variable `RUNNER_TYPE=ubuntu-24.04-arm`. See
-   [Build platform](#build-platform-apps).
+4. Check the build architecture (apps): current customer workflows default to `linux/amd64`
+   for `X86_64`. For `ARM64`, build `linux/arm64`; use your own native ARM64 runner for regular
+   builds where possible because QEMU on x86_64 can be slow. See [Build platform](#build-platform-apps).
 5. Set every secret that `quant/meta.json` declares as an environment secret, with your own random
    value ([Secrets in app templates](#secrets-in-app-templates)). The container does not start without them.
 6. Delete `ci.yml` (and `ci-develop.yml` if present) if you like: it maintains the template itself.
@@ -188,29 +187,26 @@ Full `Dockerfile`, compose, override and workflow files: [references/own-templat
 
 ### Build platform (apps)
 
-`quant.architecture` in `x-quant-labels` sets the CPU type the task runs on. The workflow's
-`platforms:` sets the CPU type of the image. They must match, or the container stops at start with
-`exec format error`.
+`quant.architecture` selects the runtime CPU; CI `platforms:` selects the image CPU. Keep them
+aligned: `X86_64` uses `linux/amd64`, `ARM64` uses `linux/arm64`. Current customer template
+workflows default to amd64 on `ubuntu-latest`. The template-only `ci.yml` and
+`template-deploy.yaml` publish both `linux/amd64` and `linux/arm64`; remove those workflows from
+customer repositories. A pre-built deploy uses the published image, while a customer source
+deploy strips the published `ghcr.io/quantcdn-templates/...` reference and builds its own image.
 
-| `quant.architecture` | Build `platforms:` | Runner |
-|---|---|---|
-| `ARM64` (the templates) | `linux/arm64` | `ubuntu-24.04-arm` (native), or `ubuntu-latest` with `docker/setup-qemu-action@v4` (slower) |
-| `X86_64` | `linux/amd64` | `ubuntu-latest` |
+Set `BUILD_PLATFORM=linux/arm64` for ARM64. For regular ARM64 builds, use your own native ARM64
+runner and set `RUNNER_TYPE` to its label (for example `quant-arm64`); it needs Docker and Buildx.
+QEMU emulation on x86_64 can be much slower, especially for compilation and compression.
+Use QEMU only when the target differs from the runner or when building multiple architectures.
 
-The template workflows read `vars.BUILD_PLATFORM` (default `linux/arm64`) and `vars.RUNNER_TYPE`
-(default `ubuntu-latest`), and have a `docker/setup-qemu-action` step. The compose files declare
-`ARM64`, so the defaults match. Keep the two in step:
+New workflows support `BUILD_PLATFORMS`, a JSON object keyed by Quant environment name, before
+falling back to `BUILD_PLATFORM`. This permits x86_64 production and ARM64 staging in one repo.
+Check older workflow copies: they may lack QEMU or per-environment selection. Changing a variable
+does not update the workflow. Build and push the selected variant before deploying an architecture
+change, and verify it with `docker buildx imagetools inspect <image>`.
 
-- Keep `ARM64`: change nothing, or set `RUNNER_TYPE=ubuntu-24.04-arm` for native builds.
-- Use x86: change `quant.architecture` to `X86_64` in `x-quant-labels` and set
-  `BUILD_PLATFORM=linux/amd64`.
-
-If you change the architecture later, change both. An older copy of a template workflow can default
-to `linux/amd64` and have no QEMU step: check it.
-
-An ARM64 build on an x86 runner uses emulation and is slower. Use an ARM runner (`RUNNER_TYPE`), or
-build architecture-independent output (static assets, JS bundles) in a `FROM --platform=$BUILDPLATFORM`
-builder stage; install native modules (for example `sharp`) in the target-platform stage.
+Build architecture-independent output in a `FROM --platform=$BUILDPLATFORM` builder stage where
+appropriate; install native dependencies in a target-platform stage.
 
 ### Static and static + edge templates
 
