@@ -64,6 +64,7 @@ look for.
 | CMS integrations: Drupal module, WordPress plugin, Drupal/WordPress on Quant Cloud | `quant-cms-integrations` |
 | Site search: index (crawler, `quant search`, search action), search API, widget | `quant-search` |
 | AI services: inference, streaming, sessions, tools, agents, vector DB, governance | `quant-ai` |
+| Slack bot API updates, images and interactive questions for external agents | `quant-slack` |
 | Quant Studio: create, edit and publish a site, migrate into Studio | `quant-studio` |
 
 Notes on the router:
