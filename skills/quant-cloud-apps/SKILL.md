@@ -1,6 +1,6 @@
 ---
 name: quant-cloud-apps
-description: Use when building, configuring, deploying or debugging a containerised app on Quant Cloud (QuantCDN or QuantGov) - the `docker-compose.yml` the platform imports (`x-quant-labels` task CPU/memory/architecture, `quant.type` labels, image tag = compose service name), Dockerfiles on the `app-node` (proxy 3000, app 3001, Next.js `HOSTNAME=0.0.0.0`) and `app-apache-php` base images, managed MySQL/Postgres (`database` in the create body) and injected `DB_*`/cache/storage variables, variables and secrets (redeploy to apply; compose `environment:` overrides injected values), `/quant-entrypoint.d/` hooks, cron, volumes (UID 1000), scaling, single-task mode, idle sleep, health checks and startup grace, backups and database sync. Also use first when a Quant Cloud environment is down or shows a 502/503/504 page (including finding its logs), CI is green but the site is old, or the app cannot reach its database. Static output: `quant-static-sites`; `qc` in depth: `qc-cli`.
+description: "Use when building, configuring, deploying or debugging a containerised app on Quant Cloud (QuantCDN or QuantGov) - the `docker-compose.yml` the platform imports (`x-quant-labels` task CPU/memory/architecture, `quant.type` labels, image tag = compose service name), Dockerfiles on the `app-node` (proxy 3000, app 3001, Next.js `HOSTNAME=0.0.0.0`) and `app-apache-php` base images, managed MySQL/Postgres (`database` in the create body) and injected `DB_*`/cache/storage variables, variables and secrets (redeploy to apply; compose `environment:` overrides injected values), `/quant-entrypoint.d/` hooks, cron, volumes (UID 1000), scaling, single-task mode, idle sleep, health checks and startup grace, backups and database sync. Also use first when a Quant Cloud environment is down or shows a 502/503/504 page (including finding its logs), CI is green but the site is old, or the app cannot reach its database. Static output: `quant-static-sites`; `qc` in depth: `qc-cli`."
 ---
 
 # Quant Cloud apps
@@ -96,6 +96,25 @@ Rules that break deploys when missed:
 Check before you deploy: the compose action prints translation warnings, and the validate API
 returns them without deploying ([references/api.md](references/api.md#validate-a-compose-file-no-deploy)).
 Read every warning: adjusted sizes, skipped services and how each volume was read.
+
+### Architecture and runner choice
+
+Match the environment to the pushed image: `X86_64` needs `linux/amd64`, `ARM64` needs
+`linux/arm64`. The current customer template workflow defaults to single-architecture amd64
+on `ubuntu-latest`; published Quant template images are multi-architecture. Customer source
+builds push into the application's own internal registry.
+
+Set `BUILD_PLATFORM` to the target and `RUNNER_TYPE` to the runner label. For ARM64 on Quant
+Cloud, recommend the customer's own native ARM64 runner (for example `RUNNER_TYPE=quant-arm64`
+and `BUILD_PLATFORM=linux/arm64`). QEMU on x86_64 can be much slower for compilation and
+compression. Keep a conditional QEMU step for cross-architecture or multi-architecture builds;
+skip it for a native single-architecture build. The runner needs Docker and Buildx.
+
+Workflows with per-environment selection read `BUILD_PLATFORMS` (JSON keyed by the Quant
+environment name) before `BUILD_PLATFORM`. Preserve other entries when changing one environment.
+Older workflow copies require the selection and QEMU steps; setting a variable alone does not
+add emulation. Build the new variant before deploying an architecture change, and inspect the
+registry index with `docker buildx imagetools inspect <image>` to verify the target exists.
 
 ## Images
 
