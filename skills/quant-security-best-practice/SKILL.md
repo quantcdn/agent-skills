@@ -96,16 +96,19 @@ WAF on, and in which mode. Report mode is not blocking.
 
 ## Security headers
 
-Set response headers once for the whole project: dashboard, the project, **Custom headers**
-(Terraform: `quant_header`). For one path only, use a headers rule (`quant-rules-and-routing`).
+New projects start with `Strict-Transport-Security: max-age=31536000`, `X-Content-Type-Options:
+nosniff` and `Referrer-Policy: strict-origin-when-cross-origin`. Review and add headers in the
+dashboard: **Security & WAF**, **Headers** (it grades the site and can add recommended values), or
+the project's **Custom headers** page (Terraform: `quant_header`). For one path only, use a headers
+rule (`quant-rules-and-routing`).
 
 | Header | Typical value |
 |---|---|
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` (add `preload` only when every subdomain serves HTTPS) |
+| `Strict-Transport-Security` | `max-age=31536000`. Add `includeSubDomains` (and then `preload`) only when every subdomain serves HTTPS, or those subdomains stop loading for a year |
 | `X-Content-Type-Options` | `nosniff` |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` |
-| `Permissions-Policy` | Turn off features the site does not use, for example `camera=(), microphone=(), geolocation=()` |
-| `X-Frame-Options` | `SAMEORIGIN` (or `frame-ancestors` in the CSP) |
+| `Permissions-Policy` | Turn off features the site does not use, for example `camera=(), microphone=()`. Keep `geolocation` if the site uses maps or store locators |
+| `X-Frame-Options` | `SAMEORIGIN` (or `frame-ancestors` in the CSP), unless another site must embed yours |
 | `Content-Security-Policy` | See the next section |
 
 Check the result with `curl -sI https://<domain>/` after the change has propagated.
@@ -200,6 +203,9 @@ you change DNS.
 
 ## Further reading
 
+- Security best practice: https://docs.quantcdn.io/security/best-practice/
+- Origin Protection: https://docs.quantcdn.io/security/origin-protection/
+- Security headers and CSP: https://docs.quantcdn.io/guides/improve-security-headers/
 - Configure the WAF: https://docs.quantcdn.io/guides/security/configure-waf/
 - WAF on a proxy rule: https://docs.quantcdn.io/dashboard/page-rules-waf/
 - ScriptAttest documentation: https://scriptattest.com/docs
