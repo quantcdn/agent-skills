@@ -258,8 +258,8 @@ containers, unless you set `singleTaskOnly`. For zero-downtime deploys on a stat
     or the API). A redeploy alone does not read the compose file.
   - In the dashboard, define the volume on the environment's **Volumes** tab. Then, on **Edit
     Config**, add a mount point for it in the container.
-- **Origin Protection:** turn it on for every container with an exposed port (dashboard **Edit
-  Config**, the container, **Enable origin protection**; API `originProtection` and
+- **Origin Protection:** turn it on for every container with an exposed port (dashboard: the
+  environment, **Details** tab, **Edit config**, the container, **Enable origin protection**; API `originProtection` and
   `originProtectionConfig` with `ipAllow` and `redirectHost`). Direct requests to the origin or
   preview domain are then blocked, and traffic must come through a Quant project. Hardening
   order and the WAF: `quant-security-best-practice`.

@@ -52,7 +52,9 @@ Origin Protection is a setting on each Quant Cloud container. When it is on, the
 traffic only through a Quant CDN or proxy project. A direct request to the app's origin or preview
 domain is blocked, so nobody can go around the project's password, WAF or rules.
 
-- Dashboard: the application, **Edit Config**, the container, **Enable origin protection**.
+- Dashboard: **Cloud Apps**, the application, the environment, **Details** tab, **Edit config**,
+  the container, **Enable origin protection**. Do this for each environment. The **Containers**
+  tab of the environment shows the current setting.
 - **IP allow list** (optional): addresses or CIDR ranges that may still reach the origin directly,
   for example your office or VPN for testing. Keep it short.
 - **Redirect denied requests** (optional): a bare host such as `www.example.com`. A blocked request
