@@ -55,6 +55,7 @@ look for.
 | The cloud CLI `qc`: login, platforms, apps, environments, variables, logs, ssh, exec, backups | `qc-cli` |
 | Static site and CDN hosting: deploy build output, unpublish, 404 pages, **forms** | `quant-static-sites` |
 | Rules and routing: redirects, proxies, headers, auth, bot challenge, rule order, **WAF** | `quant-rules-and-routing` |
+| Security hardening: static first, Origin Protection, WAF report-then-block, security headers, CSP with ScriptAttest, token hygiene, break-glass runbook | `quant-security-best-practice` |
 | Edge functions, auth and filter functions, scheduled functions, KV stores, secrets | `quant-edge-functions-and-kv` |
 | Quant Cloud apps: containers, compose, databases, volumes, scaling, environments | `quant-cloud-apps` |
 | Templates: choose a starter (app or static), or write your own template | `quant-templates` |

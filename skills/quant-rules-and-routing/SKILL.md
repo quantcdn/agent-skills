@@ -159,7 +159,8 @@ rule, list `502`, and publish a page at `/_quant502`.
 ## WAF
 
 The WAF runs **only on proxy rules**. Static content served without a proxy rule is not inspected.
-The organisation must have WAF enabled (ask Quant support).
+The organisation must have WAF enabled (ask Quant support). For the rollout order (report, review,
+block) and the rest of a hardening review, load `quant-security-best-practice`.
 
 - An unset `mode` means **report only**: the WAF logs hits and blocks nothing. The dashboard and the
   API default new rules to `report`. `waf_enabled: true` on its own therefore blocks nothing.
@@ -282,7 +283,7 @@ jq '{url: (.url + ["/promo-2026"] | unique)}' rule.json |
 - Custom error pages: https://docs.quantcdn.io/custom-error-pages/
 - `quant rules`: https://docs.quantcdn.io/content-cli/commands/rules/
 - Rule fields per type: [references/rule-types.md](references/rule-types.md)
-- Related skills: `quant-platform`, `quant-cli`, `quant-edge-functions-and-kv`, `quant-iac`,
+- Related skills: `quant-security-best-practice`, `quant-platform`, `quant-cli`, `quant-edge-functions-and-kv`, `quant-iac`,
   `quant-domains-cache-purge`, `quant-static-sites`
 
 <!-- checked against npm:@quantcdn/quant-cli 7.0.2 -->

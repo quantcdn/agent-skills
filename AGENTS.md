@@ -15,6 +15,7 @@ own project. To change the skills themselves, see `CONTRIBUTING.md`.
 | `qc` cloud CLI | `qc-cli` |
 | Deploy static output | `quant-static-sites` |
 | Redirects, proxies, headers, rule order, bot challenge, WAF | `quant-rules-and-routing` |
+| Security hardening: Origin Protection, WAF rollout, security headers, CSP (ScriptAttest), break-glass | `quant-security-best-practice` |
 | Forms on a static site | `quant-static-sites` |
 | Edge functions and KV | `quant-edge-functions-and-kv` |
 | Containerised apps, compose, environments | `quant-cloud-apps` |

@@ -1,6 +1,6 @@
 # Quant agent skills
 
-Skills that teach AI coding agents how to use the Quant platform correctly. There are 16
+Skills that teach AI coding agents how to use the Quant platform correctly. There are 17
 skills, in the open Agent Skills format. They work with QuantCode, Claude Code, Codex and other
 agents.
 
@@ -84,6 +84,7 @@ Start at `skills/quant-platform/SKILL.md`. It routes to the other skills.
 | `qc-cli` | The `qc` cloud CLI: login and platforms, org/app/env context, logs, environment variables, `exec` and `ssh`, environment state, backups |
 | `quant-static-sites` | Static output on Quant: output directory per framework, `quant deploy` vs deploy-action, unpublish behaviour, `enableIndexHtml`, custom 404, revisions and rollback, purge, Quant Forms and submission export |
 | `quant-rules-and-routing` | Project rules: how a request is matched (first match wins, ending actions, path-only patterns, `$*` vs `$1`, mode fields), proxy settings and the 502 Proxy Error page, WAF modes and rate limits (`thresholds` merged by type), bot challenge scoping and how a pass is bound, traffic source, user agent and ASN conditions through the API, managing rules from the dashboard, API, `quant rules` and Terraform, and testing a change |
+| `quant-security-best-practice` | Security hardening on Quant: static first (proxy only the paths that need an app), Origin Protection on Quant Cloud containers, the WAF rollout from report to block mode, scoped bot and abuse rules, security response headers, Content Security Policy with ScriptAttest (report-only, then enforce), editorial and preview hosts, token rotation, a break-glass runbook, and why not to put another CDN or WAF in front of Quant |
 | `quant-edge-functions-and-kv` | Edge functions, auth functions (201 to continue, 503 when the auth function is unavailable), content filters, inline `{{QUANT_FN:uuid}}` and scheduled functions; the function body contract; `quant/edge-functions.json` and `quant/edge-rules.json` with deploy-action; KV store IDs, linking, `kvStore.open` handles, `for await` paging with `maxPages`, `KVError` codes, secrets, counters, limits, ledgers and `verifyChain` |
 | `quant-cloud-apps` | Containerised apps on Quant Cloud: the compose contract (`x-quant-labels` sizing, `quant.type` labels, image tag = service name, no shadowing of injected variables), the `app-node` and `app-apache-php` base images, managed databases (`database` create body), cache and object storage variables, variables and secrets, start-up hooks, health checks and startup grace, deploy verification, single-task mode, scaling, idle sleep, cron, volumes, backups and sync |
 | `quant-templates` | Quant starter templates (`quantcdn-templates`): choosing an app, static or static + edge template, what the dashboard wizard sets up, copying a template by hand, the `quant/meta.json` keys (`requires_db`, `secrets`, `kv_stores`, `project_settings`), and writing your own template (layout, Dockerfile, override example, workflow, build platform matching `quant.architecture`) |
