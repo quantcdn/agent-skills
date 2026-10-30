@@ -107,6 +107,12 @@ deployed. There are two ways to deploy, chosen in **Settings > General > Use Qua
   warning. The workflow deploy produces those assets.
 - After a clean, complete Build & Publish, any route that an earlier Studio publish created and the new build
   no longer produces is unpublished. A build with failures never unpublishes.
+- **One full publish per site at a time.** **Build & Publish**, **Update now** and a scheduled publish take
+  the site's publish lock. If another full publish holds it, the new publish stops before it builds, and
+  shows who is publishing and when the lock clears. A scheduled publish waits and starts again later.
+- The open tab keeps the lock while it works. If the tab closes or loses its connection, the lock clears
+  after 2 minutes, and the next publish can start. A publish that lost its lock stops and reports a failure.
+  Publish again. A single-entry auto-publish does not take the lock.
 - Studio publish also creates declared KV stores and project settings from `quant/meta.json`, deploys
   `quant/edge-functions.json` entries, then applies `quant/edge-rules.json` (see `quant-templates`,
   `quant-edge-functions-and-kv`). Each part needs a permission of the person who publishes; without it
@@ -206,6 +212,8 @@ delete), **Studio Read Only** (browse). The API sends `Authorization: Bearer <to
 | Merge is rejected | GitHub branch protection | Satisfy the rule in GitHub (reviews, checks) and merge again |
 | Edge function from Studio publish is stale, empty or a source file | The manifest `path` names a file that a build step generates; Studio uploads the committed file as is | Commit the built file, or build in CI and deploy with `quant functions` |
 | Route missing after Build & Publish, with a warning | It needs a native dependency the browser cannot run | Deploy with the workflow for those assets |
+| Build & Publish says another user is publishing the site | Another full publish holds the site's publish lock | Wait for that publish to finish. If its tab was closed, the lock clears within 2 minutes |
+| Build & Publish fails with "lost the site's publish lock" | The tab stopped sending updates and another publish started | Publish again when the other publish finishes |
 
 ## Further reading
 

@@ -1,6 +1,6 @@
 # Quant agent skills
 
-Skills that teach AI coding agents how to use the Quant platform correctly. There are 15
+Skills that teach AI coding agents how to use the Quant platform correctly. There are 16
 skills, in the open Agent Skills format. They work with QuantCode, Claude Code, Codex and other
 agents.
 
@@ -93,6 +93,7 @@ Start at `skills/quant-platform/SKILL.md`. It routes to the other skills.
 | `quant-cms-integrations` | Drupal and WordPress with Quant: the Drupal module (`drupal/quantcdn`, 1.x for Drupal 10, 2.x for Drupal 11) and the WordPress plugin, connection fields and the API endpoint per platform (host only, no `/v1`), webserver URL and host header, first full push (`drush quant:run-queue`, `wp quant process_queue`), what is pushed on save, unpublish and delete, static push vs running the CMS on Quant Cloud (database variables, SMTP, files on volumes, cron, trusted hosts, `WP_HOME`), editor access after go-live and the go-live checklist |
 | `quant-search` | Site search: keyword search (Subscription, "Enable Search", records via `quant search`, `quantcdn/search-action` v2 `path`, `/search` API and facets, dashboard search pages) and AI Search (enable, crawler "AI Search Integration", re-index and delete, public access, allowed domains, Display URL, widget, modal and search page scripts, public and management APIs, usage billing), gov hosts and the no-`/v1` action endpoint, and why widgets return 403 |
 | `quant-ai` | Quant AI services: the AI API on the dashboard host (`/api/v3/organizations/{org}/ai`) with a dashboard API token, listing models (QuantGov: Australian-resident only), buffered, streaming (SSE events) and async chat, sessions, client, built-in and custom tools, agents and overlays, skills and collections, vector collections and documents, workflows with webhook and schedule triggers (secret and HMAC auth, Reveal and Rotate), governance and spend limits (403 and 429), tool approvals (`pending_approval`, the Approvals page, QuantCode prompts; enabled by Quant per organisation), the OpenAI-compatible `/oai/v1` surface, and the Terraform `quant_ai_*` resources |
+| `quant-slack` | Slack updates, images and interactive questions for external agents |
 | `quant-studio` | Quant Studio, the visual editor and CMS for Astro sites in GitHub: when to choose it, creating a project from a Studio template or a repository, editing entries and components, drafts, branches and preview environments, pull-request review, publishing (GitHub workflow vs Quant Builder Build & Publish), the custom 404 (`_quant404`), migrating a site in, redirects (Astro `redirects` are meta-refresh pages; use Quant redirect rules for real 301s; paths match case-insensitively), roles and `studio:*` token scopes |
 
 ## Documentation

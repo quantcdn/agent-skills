@@ -26,6 +26,7 @@ own project. To change the skills themselves, see `CONTRIBUTING.md`.
 | Site search, and the crawler that fills the index | `quant-search` |
 | The crawler for cache warming or site checks | `quant-domains-cache-purge` |
 | AI services | `quant-ai` |
+| Slack updates, screenshots, questions and external-agent permission requests | `quant-slack` |
 | Studio | `quant-studio` |
 
 ## Which platform

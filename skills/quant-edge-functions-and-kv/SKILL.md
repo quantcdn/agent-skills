@@ -129,7 +129,9 @@ class contentFilter extends TransformStream {
 ```
 
 - Name the class `contentFilter`. The body is changed as it streams, chunk by chunk, so a
-  word split across two chunks is not replaced.
+  word split across two chunks is not replaced. To match anything that can span a chunk —
+  an element with its closing tag, a script block, a long attribute — buffer the body in
+  `transform` and rewrite it in `flush` (below).
 - Where a filter runs:
 
   | Response | Filter runs? |
@@ -143,7 +145,57 @@ class contentFilter extends TransformStream {
   returns JSON or CSS rewrites that output too. Scope filter rules to the HTML paths, or check
   `responseHeaders.get('content-type')` in the constructor and pass chunks through unchanged.
 - The filter rule continues to later rules. If several filter rules match, only the **last**
-  one applies.
+  one applies. One filter that does two jobs is the only way to combine them.
+
+### Rewriting a whole document
+
+A per-chunk replace works on a short string that a chunk holds complete. It is not safe for
+anything larger: a form, a table or a script block can start in one chunk and end several
+chunks later, so the match fails, and a replacement built from a partial match corrupts the
+page. Collect the text in `transform` and do the work in `flush`, which runs once after the
+last chunk.
+
+Wrap the rewrite in `try`/`catch` and enqueue the original text when it throws. A filter is a
+change to a page that already renders without it: a bad regex or an unexpected document should
+cost you the change, not the page.
+
+```js
+class contentFilter extends TransformStream {
+  constructor(event, responseHeaders) {
+    // Declared before super() so the callbacks close over them. Reading `this`
+    // before super() is not allowed.
+    const decoder = new TextDecoder();
+    const encoder = new TextEncoder();
+    const isHtml = (responseHeaders.get('content-type') || '').includes('text/html');
+    let buffer = '';
+
+    super({
+      transform(chunk, controller) {
+        // Anything that is not HTML streams through untouched and unbuffered.
+        if (!isHtml) {
+          controller.enqueue(chunk);
+          return;
+        }
+        buffer += decoder.decode(chunk, { stream: true });
+      },
+      flush(controller) {
+        if (!isHtml) return;
+        buffer += decoder.decode();
+        let out = buffer;
+        try {
+          out = buffer.replace(/<form\b[^>]*>[\s\S]*?<\/form\s*>/gi, '<p>Unavailable.</p>');
+        } catch (e) {
+          out = buffer;
+        }
+        controller.enqueue(encoder.encode(out));
+      },
+    });
+  }
+}
+```
+
+The cost is time to first byte: nothing reaches the visitor until the response is complete.
+Weigh that against the page size you are rewriting.
 
 ## Inline functions
 
@@ -302,6 +354,8 @@ outcome with it. See [references/kv-ledgers.md](references/kv-ledgers.md).
 | Filter changes nothing on a static CSS or JS file, or on a JSON proxy response | Filters skip static files and non-HTML rule responses | Use a function rule for those types |
 | JSON or CSS from a function comes back altered | A filter rule also matches the function's URL; filters run on all function output | Narrow the filter rule's URLs, or skip non-HTML in the filter |
 | Second filter rule ignored | Only the last matching filter applies | Combine the filters into one |
+| A replacement matched part of an element, or did not match at all | A per-chunk replace cannot see a match that spans two chunks | Buffer in `transform`, rewrite in `flush` ("Rewriting a whole document") |
+| A page that renders fine without the filter fails with the filter on | The filter threw — a bad pattern, or markup it did not expect | Wrap the rewrite in `try`/`catch` and enqueue the original text on error |
 | Studio publish deployed an old or unbuilt function | Studio uploads the committed file at `path`; it runs no build | Commit the built file, or build in CI and deploy with `quant functions` |
 | A new function appeared after a deploy | The manifest `uuid` changed | Restore the old UUID; delete the extra function in the dashboard |
 | Deploy fails: rules need `api-token` | `rules` set without the platform token | Add `api-token` and `api-base-url` (`{dashboard}/api/v2`) |
