@@ -1,8 +1,8 @@
 # Interactive questions and permission requests
 
 Availability: requires the Slack interactions API release enabled on the selected environment.
-This contract is being delivered with that release; do not claim it exists when the API returns
-404. Ordinary messages/files remain usable independently.
+Live interaction behavior has been verified on government-platform staging and production;
+do not claim it exists on another environment when the API returns 404. Ordinary messages/files remain usable independently.
 
 Paths are relative to `{dashboard}/api/v3/organizations/{org}/ai/slack-bots/{botId}`.
 Use the same explicit `ai:slack` bearer token as for messages.
@@ -58,7 +58,8 @@ creating organisation, bot, user and token; token rotation does not transfer own
 ## Cancel
 
 When the request is no longer relevant, `POST /interactions/{interactionId}/cancel` with an empty
-JSON object. Cancellation cannot overwrite an already recorded response. Read the returned state.
+JSON object. Cancellation cannot overwrite an already recorded response. A closed interaction returns
+409 `INTERACTION_CLOSED`; read its existing state rather than retrying cancellation.
 
 ## Meaning and evidence
 

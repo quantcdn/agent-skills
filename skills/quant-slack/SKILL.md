@@ -82,4 +82,4 @@ change the authorised scope.
 - [Interactive questions](references/interactions.md)
 - [Quant AI services](../quant-ai/SKILL.md) for platform-managed tool approvals.
 
-Checked against the Slack API route/controller implementation and production message/file smoke tests, 2026-10-29. Interaction examples track the accompanying implementation branch; deployment verification is pending.
+Checked against the Slack API route/controller implementation and live government-platform tests, 2026-10-30: production messages, files and human interaction responses; staging cancellation, expiry, idempotency and protected-ledger evidence. Confirm availability on the selected environment.
