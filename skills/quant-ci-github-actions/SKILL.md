@@ -14,19 +14,19 @@ skill covers the pipeline around it.
 ## Applies to
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
-Checked 2026-10 against each action's `action.yml` and source at its latest tag, `quant` 7.0.1 and
+Checked 2026-10-31 against each action's `action.yml` and source at its latest tag, `quant` 7.2.0 and
 `qc` 0.7.0. All versions, SHAs, inputs and outputs: [references/actions.md](references/actions.md).
 
 | Value | Public | Gov | Used by |
 |---|---|---|---|
-| Content API `endpoint` | `https://api.quantcdn.io/v1` (default) | `https://api.quantgov.cloud/v1` | deploy-action, purge-action, search-action v2.1.0, `quant` |
+| Content API `endpoint` | `https://api.quantcdn.io/v1` (default) | `https://api.quantgov.cloud/v1` | deploy-action, purge-action, search-action v2.1.0 and later, `quant` |
 | Rules `api-base-url` | `https://dashboard.quantcdn.io/api/v2` | `https://dash.quantgov.cloud/api/v2` | deploy-action with `rules` |
 | Quant Cloud `base_url` | `https://dashboard.quantcdn.io` (default) | `https://dash.quantgov.cloud` | every Quant Cloud action |
 
 Use the bare dashboard host for every Quant Cloud action. The v4 actions and the environment
-variable action v1.0.3 also accept `{dashboard}/api/v3` (the templates use it). The environment
+variable action v1.0.3 and later also accept `{dashboard}/api/v3` (the templates use it). The environment
 variable action v1.0.2 and earlier do not strip `/api/v3`, so a value ending `/api/v3` doubles the
-path (`/api/v3/api/v3/...`, "route could not be found"). Pin v1.0.3 or use the bare host. Each
+path (`/api/v3/api/v3/...`, "route could not be found"). Use v1.0.3 or later, or use the bare host. Each
 credential belongs to one platform. Ask for the dashboard URL if you do not know the platform.
 
 search-action v2.0.0 took the content endpoint without `/v1` (its CLI added it). v2.1.0 takes
@@ -61,7 +61,7 @@ your workflow. A commit SHA cannot change. Pin the full 40-character SHA and kee
 comment, so people and Dependabot can read it:
 
 ```yaml
-uses: quantcdn/deploy-action@9bf8cae8497ab6628d4b248db9eb11464f37e1e5 # v7.0.1
+uses: quantcdn/deploy-action@d6d776177f9fbdf781a7d09c071185a9e509fcc3 # v7.1.1
 ```
 
 Let Dependabot raise update pull requests: add `.github/dependabot.yml` with an `updates` entry for
@@ -135,7 +135,7 @@ jobs:
 
       - name: Initialize Quant Cloud      # validates access and logs Docker in to the registry
         id: init
-        uses: quantcdn/quant-cloud-init-action@1bc52dca113ea1cb2f3d7dcb0edbc7859d76afaf # v4.0.1
+        uses: quantcdn/quant-cloud-init-action@ef36e08b9c21e6fc432f1673b49d7776657d3822 # v4.0.2
         with:
           quant_organization: ${{ secrets.QUANT_ORGANIZATION }}
           quant_api_key: ${{ secrets.QUANT_API_KEY }}
@@ -155,7 +155,7 @@ jobs:
 
       - name: Translate docker-compose.yml
         id: compose
-        uses: quantcdn/quant-cloud-compose-action@3a06db471e3364db3e4691fd522b9c37346d0a19 # v4.0.0
+        uses: quantcdn/quant-cloud-compose-action@71b65046ed3f40a6a5fa7f96688fc37b3fb86d61 # v4.0.1
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -164,7 +164,7 @@ jobs:
           base_url: ${{ env.QUANT_BASE_URL }}
 
       - name: Create or update the environment
-        uses: quantcdn/quant-cloud-environment-action@165b2448cafaa28735aa80a13f1e9cdf1c2dcc4f # v4.1.0
+        uses: quantcdn/quant-cloud-environment-action@99bca1ffbfa3c0f1dcd31aad3aecedee86fb837d # v4.1.1
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -173,13 +173,13 @@ jobs:
           operation: ${{ steps.init.outputs.environment_exists == 'true' && 'update' || 'create' }}
           compose_spec: ${{ steps.compose.outputs.translated_compose }}
           base_url: ${{ env.QUANT_BASE_URL }}
-          # Optional (v4.1.0). Unset: the dashboard scaling is kept. Empty values are not sent.
+          # Optional (v4.1.0 and later). Unset: the dashboard scaling is kept. Empty values are not sent.
           min_capacity: ${{ vars.QUANT_MIN_CAPACITY }}
           max_capacity: ${{ vars.QUANT_MAX_CAPACITY }}
 
       - name: Redeploy
         if: steps.init.outputs.environment_exists == 'true'
-        uses: quantcdn/quant-cloud-environment-state-action@b1b75af5d772bb295bc067f225a7bb3a952bd7a1 # v4.0.1
+        uses: quantcdn/quant-cloud-environment-state-action@64ba68816e09e22c9015f07f44f5c0538ce09374 # v4.0.2
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -201,9 +201,9 @@ How the init action maps the Git ref (the image tag is `<service>-<image_suffix_
 
 - **The image tag starts with the compose service name**, and `platforms` matches
   `quant.architecture` (`ARM64` = `linux/arm64`). Details: `quant-cloud-apps`, `quant-templates`.
-- **Scaling:** environment action v4.1.0 sends `min_capacity` and `max_capacity` only when they
+- **Scaling:** environment action v4.1.0 and later send `min_capacity` and `max_capacity` only when they
   are set. Leave them out to keep the scaling set in the dashboard. v4.0.0 and earlier sent 1 for
-  each on every create and update, which reset the scaling to one task. Pin v4.1.0 to stop that.
+  each on every create and update, which reset the scaling to one task. Use v4.1.0 or later to stop that.
 - `operation: create` also updates an environment that exists; `update` fails if it does not.
 
 ### Architecture and runner choice
@@ -270,7 +270,7 @@ Static deploys have the same gap in a different form: missing uploads only warn.
 
 ## Other CI systems
 
-- **Static sites:** run `quant` (`npm install -g @quantcdn/quant-cli`, or the `quantcdn/cli:7.0.1`
+- **Static sites:** run `quant` (`npm install -g @quantcdn/quant-cli`, or the `quantcdn/cli:7.2.0`
   image with its entrypoint cleared) with `QUANT_CLIENT_ID` (not `QUANT_CUSTOMER`), `QUANT_PROJECT`,
   `QUANT_TOKEN` and, on gov, `QUANT_ENDPOINT=https://api.quantgov.cloud/v1`. Then
   `quant deploy dist` and `quant purge "/*"`. Details: `quant-cli`.
@@ -287,12 +287,12 @@ Static deploys have the same gap in a different form: missing uploads only warn.
 | Symptom | Cause | Fix |
 |---|---|---|
 | Green run, site still serves the old release | The actions do not wait for healthy containers | `qc env list`, `qc env logs`, Deployments tab; optional `deploymentStatus` poll |
-| Scaling back to 1 task after every deploy | Environment action v4.0.0 or earlier (`@v4` resolved before v4.1.0) sends min/max 1 on each update | Pin v4.1.0, or pass `min_capacity`/`max_capacity` |
-| `route api/v3/api/v3/... could not be found` (environment-var action) | `base_url` ends in `/api/v3`; v1.0.2 and earlier do not strip it | Pin v1.0.3, or `base_url: https://dashboard.quantcdn.io` (gov `https://dash.quantgov.cloud`) |
+| Scaling back to 1 task after every deploy | Environment action v4.0.0 or earlier (`@v4` resolved before v4.1.0) sends min/max 1 on each update | Use v4.1.0 or later, or pass `min_capacity`/`max_capacity` |
+| `route api/v3/api/v3/... could not be found` (environment-var action) | `base_url` ends in `/api/v3`; v1.0.2 and earlier do not strip it | Use v1.0.3 or later, or `base_url: https://dashboard.quantcdn.io` (gov `https://dash.quantgov.cloud`) |
 | Init fails: organisation not found or no registry credentials, on gov | No `base_url`, so it called the public dashboard | Set `base_url` on every Quant Cloud action |
 | Static deploy 401/403 on gov | `endpoint` missing (defaults to public) | `endpoint: https://api.quantgov.cloud/v1` on deploy and purge |
 | search-action records fail on gov | `endpoint` does not match the version: v2.1.0 needs `/v1`, v2.0.0 adds its own `/v1` | v2.1.0: `endpoint: https://api.quantgov.cloud/v1` |
-| search-action step green, nothing indexed | v2.1.0 `path` is a directory; `quant` 7.0.1 reads one file and still reports success | `path` = one JSON file; one step per file |
+| search-action step green, nothing indexed | v2.1.0 `path` is a directory; `quant` 7.2.0 reads one file and still reports success | `path` = one JSON file; one step per file |
 | Pages vanish after a deploy | Build produced a partial `dir`, or content made outside the build | Fail the job on a bad build; `skip-unpublish-regex`; `quant-static-sites` |
 | Environment step: application not found | The application does not exist; actions create only environments | Create the application first; check `QUANT_APPLICATION` |
 | Sync step green but nothing copied | Platform refused it (for example no database); step sets `skipped` | Check `skipped`; give the app a database |
@@ -313,10 +313,10 @@ Static deploys have the same gap in a different form: missing uploads only warn.
   (compose contract, verify a deploy), `quant-templates` (template workflows), `quant-cli`, `qc-cli`,
   `quant-edge-functions-and-kv` (manifests), `quant-domains-cache-purge`
 
-<!-- checked against gh:quantcdn/deploy-action 7.0.1 -->
-<!-- checked against gh:quantcdn/search-action 2.1.0 -->
-<!-- checked against gh:quantcdn/quant-cloud-init-action 4.0.1 -->
-<!-- checked against gh:quantcdn/quant-cloud-compose-action 4.0.0 -->
-<!-- checked against gh:quantcdn/quant-cloud-environment-action 4.1.0 -->
-<!-- checked against gh:quantcdn/quant-cloud-environment-state-action 4.0.1 -->
-<!-- checked against gh:quantcdn/quant-cloud-environment-var-action 1.0.3 -->
+<!-- checked against gh:quantcdn/deploy-action 7.1.1 -->
+<!-- checked against gh:quantcdn/search-action 2.1.1 -->
+<!-- checked against gh:quantcdn/quant-cloud-init-action 4.0.2 -->
+<!-- checked against gh:quantcdn/quant-cloud-compose-action 4.0.1 -->
+<!-- checked against gh:quantcdn/quant-cloud-environment-action 4.1.1 -->
+<!-- checked against gh:quantcdn/quant-cloud-environment-state-action 4.0.2 -->
+<!-- checked against gh:quantcdn/quant-cloud-environment-var-action 1.0.4 -->
