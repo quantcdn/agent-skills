@@ -14,7 +14,7 @@ For the platform overview load `quant-platform`.
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Identify the platform by the dashboard URL only; ask the customer if you do not know it. The
 search features are the same on both. Checked 2026-10 against the public docs,
-`@quantcdn/quant-cli` 7.0.1 and `quantcdn/search-action` v2.1.0 (runs `quant` 7.0.1).
+`@quantcdn/quant-cli` 7.0.1 and `quantcdn/search-action` v2.1.1 (runs `quant` 7.2.0).
 
 | | QuantCDN | QuantGov |
 |---|---|---|
@@ -116,7 +116,7 @@ Do not invent one. For a query API use AI Search.
 
 ```yaml
       - name: Index search records
-        uses: quantcdn/search-action@a714ca5316f148e934dca97caf8c4409e6092970 # v2.1.0
+        uses: quantcdn/search-action@908ed45742d8f9c80abe4155b93b0c9d13a90ba5 # v2.1.1
         with:
           customer: ${{ vars.QUANT_CUSTOMER }}
           project: ${{ vars.QUANT_PROJECT }}
@@ -240,4 +240,4 @@ snippets from `dash.quantgov.cloud`, and AI answers come from Australian-residen
 - Related skills: `quant-platform`, `quant-cli`, `quant-ci-github-actions`, `quant-domains-cache-purge`,
   `quant-cms-integrations`, `quant-ai`
 
-<!-- checked against gh:quantcdn/search-action 2.1.0 -->
+<!-- checked against gh:quantcdn/search-action 2.1.1 -->

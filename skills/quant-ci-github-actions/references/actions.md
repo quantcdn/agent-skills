@@ -2,22 +2,28 @@
 
 Read from each action's `action.yml` and source at its latest release tag, 2026-10. "Default" is
 the value the action uses when you leave the input out. Pin with the full SHA and keep the version
-in a comment: `uses: quantcdn/deploy-action@9bf8cae8497ab6628d4b248db9eb11464f37e1e5 # v7.0.1`.
+in a comment: `uses: quantcdn/deploy-action@d6d776177f9fbdf781a7d09c071185a9e509fcc3 # v7.1.1
 
 | Action | Latest | Commit SHA | Major tag |
 |---|---|---|---|
-| `quantcdn/deploy-action` | v7.0.1 | `9bf8cae8497ab6628d4b248db9eb11464f37e1e5` | `v7` |
-| `quantcdn/purge-action` | v7.1.0 | `5c2a85f5318917ef12b9099cf101fe6bd75d0d06` | `v7` |
-| `quantcdn/search-action` | v2.1.0 | `a714ca5316f148e934dca97caf8c4409e6092970` | `v2` |
-| `quantcdn/quant-cloud-init-action` | v4.0.1 | `1bc52dca113ea1cb2f3d7dcb0edbc7859d76afaf` | `v4` |
-| `quantcdn/quant-cloud-compose-action` | v4.0.0 | `3a06db471e3364db3e4691fd522b9c37346d0a19` | `v4` |
-| `quantcdn/quant-cloud-environment-action` | v4.1.0 | `165b2448cafaa28735aa80a13f1e9cdf1c2dcc4f` | `v4` |
-| `quantcdn/quant-cloud-environment-state-action` | v4.0.1 | `b1b75af5d772bb295bc067f225a7bb3a952bd7a1` | `v4` |
-| `quantcdn/quant-cloud-environment-sync-action` | v4.0.0 | `aeb054d52e2067ac7eb6694c07df2c4cde262c5f` | `v4` |
-| `quantcdn/quant-cloud-environment-var-action` | v1.0.3 | `d9b08f58ad3406a01fbb75725a9065e50a30fa99` | `v1` |
-| `quantcdn/quant-cloud-environment-backup-action` | v4.4.2 | `9c46be7346ab2ec78f7dd5e0b0795ce2eff3eca2` | `v4` |
+| `quantcdn/deploy-action` | v7.1.1 | `d6d776177f9fbdf781a7d09c071185a9e509fcc3` | `v7` |
+| `quantcdn/purge-action` | v7.1.1 | `540559574168b65a2310781a1656b06f45e01a71` | `v7` |
+| `quantcdn/search-action` | v2.1.1 | `908ed45742d8f9c80abe4155b93b0c9d13a90ba5` | `v2` |
+| `quantcdn/quant-cloud-init-action` | v4.0.2 | `ef36e08b9c21e6fc432f1673b49d7776657d3822` | `v4` |
+| `quantcdn/quant-cloud-compose-action` | v4.0.1 | `71b65046ed3f40a6a5fa7f96688fc37b3fb86d61` | `v4` |
+| `quantcdn/quant-cloud-environment-action` | v4.1.1 | `99bca1ffbfa3c0f1dcd31aad3aecedee86fb837d` | `v4` |
+| `quantcdn/quant-cloud-environment-state-action` | v4.0.2 | `64ba68816e09e22c9015f07f44f5c0538ce09374` | `v4` |
+| `quantcdn/quant-cloud-environment-sync-action` | v4.1.1 | `f2af81fba5c61313589ab2e25fe889f7a4ffed84` | `v4` |
+| `quantcdn/quant-cloud-environment-var-action` | v1.0.4 | `54290b4e129254a1074a37be0d74fa7837ccd480` | `v1` |
+| `quantcdn/quant-cloud-environment-backup-action` | v4.4.4 | `2d268c726e9c35472b028fbfab660600d4f2d2aa` | `v4` |
 
 `quantcdn/quant-cloud-ecr-action` is superseded: the init action logs Docker in to the registry.
+
+**Runner runtime:** the JavaScript actions above (every Quant Cloud action) run on the runner's
+own Node 24 and need 24.22.1 or later. A check before the action starts fails the step on an
+older runner. GitHub-hosted runners already meet it. On a self-hosted runner, update the runner
+itself: a `setup-node` step changes the Node of your `run` steps, not the Node that runs actions.
+Older release SHAs keep their original code, so update a pinned SHA to receive a fix.
 
 Check for a newer release before you pin. Release pages can lag the tags, so read the tags:
 `git ls-remote --tags --sort=-v:refname https://github.com/quantcdn/<action> 'v*.*.*' | head -2`,
@@ -28,9 +34,9 @@ then `gh api repos/quantcdn/<action>/commits/<tag> --jq .sha` for the commit SHA
 These call the content API with the **project token** (`QUANT_TOKEN`, from the project's
 Integrations page). On gov set `endpoint` on every step.
 
-### `quantcdn/deploy-action` v7.0.1
+### `quantcdn/deploy-action` v7.1.1
 
-Runs `quant` 7.0.1 (`quantcdn/cli:7.0.1`, pinned by digest).
+Runs `quant` 7.2.0 (`quantcdn/cli:7.2.0`, pinned by digest). v7.0.1 ran 7.0.1.
 
 | Input | Required | Default | Notes |
 |---|---|---|---|
@@ -48,17 +54,19 @@ Runs `quant` 7.0.1 (`quantcdn/cli:7.0.1`, pinned by digest).
 | `enable-index-html` | no | `false` | Keep `index.html` in URLs. Keep the same value in every run |
 | `functions` | no | none | Path to `quant/edge-functions.json` (every entry needs a `uuid`) |
 | `rules` | no | none | Path to `quant/edge-rules.json`. Needs `api-token` and `api-base-url` |
-| `api-token` | no | none | Project-scoped platform token for rules (`projects:read`, `rules:read`, `rules:write`) |
+| `api-token` | no | none | Project-scoped platform token for rules (`projects:read`, `rules:read`, `rules:write`) and for `kv-indexes` (`kv:read`, `kv:write`) |
 | `api-base-url` | no | none | `{dashboard}/api/v2`: `https://dashboard.quantcdn.io/api/v2` or `https://dash.quantgov.cloud/api/v2` |
+| `kv-indexes` | no | none | Path to `quant/meta.json` (from v7.1.0). Declares the KV indexes in it before functions deploy; never drops or changes an index. Needs `api-token` and `api-base-url` |
 | `rules-force` | no | `false` | Overwrite managed rules that someone changed in the dashboard |
 
 Outputs: none. Order of work: rules dry run (when `rules` is set), functions, `dir`, rules.
 Upload failures print `Failed to deploy <file>` and the step still passes. Manifest formats:
 `quant-edge-functions-and-kv`. Unpublish and revision-log behaviour: `quant-static-sites`.
 
-### `quantcdn/purge-action` v7.1.0
+### `quantcdn/purge-action` v7.1.1
 
-Runs `quant` 7.0.1 (`quantcdn/cli:7.0.1`). v7.0.0 ran 6.2.0. The inputs did not change.
+Runs `quant` 7.2.0 (`quantcdn/cli:7.2.0`, pinned by digest). v7.1.0 ran 7.0.1 and v7.0.0 ran
+6.2.0. The inputs did not change.
 
 | Input | Required | Default | Notes |
 |---|---|---|---|
@@ -72,10 +80,10 @@ Runs `quant` 7.0.1 (`quantcdn/cli:7.0.1`). v7.0.0 ran 6.2.0. The inputs did not 
 
 Set exactly one of `url_pattern` and `cache_keys`; the step fails with both or neither. Outputs: none.
 
-### `quantcdn/search-action` v2.1.0
+### `quantcdn/search-action` v2.1.1
 
-Runs `quant` 7.0.1 (`quantcdn/cli:7.0.1`). v2.0.0 ran `quant` 2.0.0, which added `/v1` to the
-endpoint itself. From v2.1.0 the `endpoint` includes `/v1`, like the other content actions.
+Runs `quant` 7.2.0 (`quantcdn/cli:7.2.0`, pinned by digest). v2.1.0 ran 7.0.1. v2.0.0 ran
+`quant` 2.0.0, which added `/v1` to the endpoint itself. From v2.1.0 the `endpoint` includes `/v1`, like the other content actions.
 
 | Input | Required | Default | Notes |
 |---|---|---|---|
@@ -86,7 +94,7 @@ endpoint itself. From v2.1.0 the `endpoint` includes `/v1`, like the other conte
 | `operation` | yes | | `index`, `unindex`, `status` or `clear` |
 | `path` | no | | `index`: **one** JSON file (an array of records). `unindex`: the URL path to remove |
 
-Outputs: none. A directory is not accepted from v2.1.0: `quant` 7.0.1 prints the read error
+Outputs: none. A directory is not accepted from v2.1.0: `quant` 7.2.0 prints the read error
 (`EISDIR`), then reports success, and the step passes with nothing indexed. Use one step per file.
 Read the log.
 
@@ -98,13 +106,13 @@ API Tokens). The token belongs to one platform. `base_url` selects the platform.
 | Action | `base_url` default | Accepts the bare host | Accepts `{dashboard}/api/v3` |
 |---|---|---|---|
 | init, compose, environment, state, sync | `https://dashboard.quantcdn.io` | yes | yes (removed before use) |
-| backup v4.4.2 | `https://dashboard.quantcdn.io/api/v3` | yes | yes (removed before use) |
-| environment-var v1.0.3 | `https://dashboard.quantcdn.io` | yes | yes (removed before use). v1.0.2 and earlier do not remove it, so the path doubles (`/api/v3/api/v3/...`) |
+| backup v4.4.4 | `https://dashboard.quantcdn.io/api/v3` | yes | yes (removed before use) |
+| environment-var v1.0.4 | `https://dashboard.quantcdn.io` | yes | yes (removed before use). v1.0.2 and earlier do not remove it, so the path doubles (`/api/v3/api/v3/...`) |
 
 The bare dashboard host (`https://dashboard.quantcdn.io` or `https://dash.quantgov.cloud`) works
 for every Quant Cloud action.
 
-### `quantcdn/quant-cloud-init-action` v4.0.1
+### `quantcdn/quant-cloud-init-action` v4.0.2
 
 Checks the organisation and token, logs Docker in to the Quant Cloud image registry, and works
 out the application, environment and image suffix from the Git ref. Run it first.
@@ -140,7 +148,7 @@ out the application, environment and image suffix from the Git ref. Run it first
 Environment names keep only letters and digits (everything else becomes `-`) and are lowercased.
 Image suffixes also keep dots. The application is not created by any action: create it first.
 
-### `quantcdn/quant-cloud-compose-action` v4.0.0
+### `quantcdn/quant-cloud-compose-action` v4.0.1
 
 Validates `docker-compose.yml` with the platform and returns the translated definition. Same commit
 as v1.2.0.
@@ -157,7 +165,7 @@ as v1.2.0.
 Output: `translated_compose` (JSON for the environment action). Translation warnings appear as
 workflow warnings; an invalid file fails the step.
 
-### `quantcdn/quant-cloud-environment-action` v4.1.0
+### `quantcdn/quant-cloud-environment-action` v4.1.1
 
 Creates, updates or deletes an environment.
 
@@ -180,9 +188,9 @@ Output: `environment_name`.
 **Scaling:** from v4.1.0 the action sends `min_capacity` and `max_capacity` only when you set
 them. If you leave them out, an update keeps the scaling set in the dashboard, and a new
 environment gets the platform default. v4.0.0 and earlier sent `1` for each on every create and
-update, which reset the scaling to 1/1. On those versions, pass both inputs or pin v4.1.0.
+update, which reset the scaling to 1/1. On those versions, pass both inputs or use v4.1.0 or later.
 
-### `quantcdn/quant-cloud-environment-state-action` v4.0.1
+### `quantcdn/quant-cloud-environment-state-action` v4.0.2
 
 | Input | Required | Default | Notes |
 |---|---|---|---|
@@ -196,7 +204,7 @@ update, which reset the scaling to 1/1. On those versions, pass both inputs or p
 Outputs: none. Retries the request up to five times. It returns when the platform accepts the
 request; it does not wait for the new containers.
 
-### `quantcdn/quant-cloud-environment-sync-action` v4.0.0
+### `quantcdn/quant-cloud-environment-sync-action` v4.1.1
 
 Copies the database or the files of `source` into `environment_name` (the **target**).
 
@@ -211,14 +219,15 @@ Copies the database or the files of `source` into `environment_name` (the **targ
 | `wait` | no | `false` | `true`: poll until the sync completes or fails |
 | `wait_interval` | no | `10` | Seconds between polls |
 | `max_retries` | no | `30` | Polls before the step fails (30 x 10 s = 5 minutes) |
+| `fail_on_skip` | no | `false` | `true`: fail the step when the platform refuses the sync (from v4.1.1) |
 | `base_url` | no | `https://dashboard.quantcdn.io` | |
 
 Outputs: `sync_id`, `success`, `skipped`. If the platform answers 400 (for example, the
-application has no database), the step prints a warning, sets `skipped` to `true` and **passes**.
-Check `skipped`. The action cannot sync into `production`. Syncs that read from production need
+application has no database), the step prints a `Sync skipped` warning with the platform message,
+sets `skipped` to `true` and **passes**. Check `skipped`, or set `fail_on_skip: true`. The action cannot sync into `production`. Syncs that read from production need
 the `trigger_prod_sync` permission.
 
-### `quantcdn/quant-cloud-environment-var-action` v1.0.3
+### `quantcdn/quant-cloud-environment-var-action` v1.0.4
 
 Manages **environment variables**. It does not create secrets: values it sets are plain variables
 that anyone with access to the environment can read. Keep secrets in the dashboard
@@ -242,7 +251,7 @@ Sources merge in order `env_file`, `json_vars`, `variables` (later wins). Output
 (JSON with values, from `list`), `count`, `updated_count`, `deleted_count`, `failed_count`. A `set`
 with any failed key fails the step. Changes reach the containers only after a redeploy.
 
-### `quantcdn/quant-cloud-environment-backup-action` v4.4.2
+### `quantcdn/quant-cloud-environment-backup-action` v4.4.4
 
 | Input | Required | Default | Notes |
 |---|---|---|---|

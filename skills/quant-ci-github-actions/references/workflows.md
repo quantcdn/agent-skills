@@ -53,7 +53,7 @@ jobs:
           restore-keys: quant-revision-${{ github.ref }}-
 
       - name: Deploy
-        uses: quantcdn/deploy-action@9bf8cae8497ab6628d4b248db9eb11464f37e1e5 # v7.0.1
+        uses: quantcdn/deploy-action@d6d776177f9fbdf781a7d09c071185a9e509fcc3 # v7.1.1
         with:
           customer: ${{ vars.QUANT_CUSTOMER }}
           project: ${{ vars.QUANT_PROJECT }}
@@ -64,7 +64,7 @@ jobs:
           skip-purge: true
 
       - name: Purge
-        uses: quantcdn/purge-action@5c2a85f5318917ef12b9099cf101fe6bd75d0d06 # v7.1.0
+        uses: quantcdn/purge-action@540559574168b65a2310781a1656b06f45e01a71 # v7.1.1
         with:
           customer: ${{ vars.QUANT_CUSTOMER }}
           project: ${{ vars.QUANT_PROJECT }}
@@ -123,7 +123,7 @@ jobs:
 
       - name: Initialize Quant Cloud     # PR -> environment pr-<n>, image suffix pr-<n>
         id: init
-        uses: quantcdn/quant-cloud-init-action@1bc52dca113ea1cb2f3d7dcb0edbc7859d76afaf # v4.0.1
+        uses: quantcdn/quant-cloud-init-action@ef36e08b9c21e6fc432f1673b49d7776657d3822 # v4.0.2
         with:
           quant_organization: ${{ secrets.QUANT_ORGANIZATION }}
           quant_api_key: ${{ secrets.QUANT_API_KEY }}
@@ -140,7 +140,7 @@ jobs:
 
       - name: Translate docker-compose.yml
         id: compose
-        uses: quantcdn/quant-cloud-compose-action@3a06db471e3364db3e4691fd522b9c37346d0a19 # v4.0.0
+        uses: quantcdn/quant-cloud-compose-action@71b65046ed3f40a6a5fa7f96688fc37b3fb86d61 # v4.0.1
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -149,7 +149,7 @@ jobs:
           base_url: ${{ env.QUANT_BASE_URL }}
 
       - name: Create (cloned from production) or update
-        uses: quantcdn/quant-cloud-environment-action@165b2448cafaa28735aa80a13f1e9cdf1c2dcc4f # v4.1.0
+        uses: quantcdn/quant-cloud-environment-action@99bca1ffbfa3c0f1dcd31aad3aecedee86fb837d # v4.1.1
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -183,7 +183,7 @@ jobs:
       - name: Copy the production database (first run only)
         id: sync
         if: steps.init.outputs.environment_exists != 'true'
-        uses: quantcdn/quant-cloud-environment-sync-action@aeb054d52e2067ac7eb6694c07df2c4cde262c5f # v4.0.0
+        uses: quantcdn/quant-cloud-environment-sync-action@f2af81fba5c61313589ab2e25fe889f7a4ffed84 # v4.1.1
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -202,7 +202,7 @@ jobs:
 
       - name: Redeploy
         if: steps.init.outputs.environment_exists == 'true'
-        uses: quantcdn/quant-cloud-environment-state-action@b1b75af5d772bb295bc067f225a7bb3a952bd7a1 # v4.0.1
+        uses: quantcdn/quant-cloud-environment-state-action@64ba68816e09e22c9015f07f44f5c0538ce09374 # v4.0.2
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -216,7 +216,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delete the PR environment
-        uses: quantcdn/quant-cloud-environment-action@165b2448cafaa28735aa80a13f1e9cdf1c2dcc4f # v4.1.0
+        uses: quantcdn/quant-cloud-environment-action@99bca1ffbfa3c0f1dcd31aad3aecedee86fb837d # v4.1.1
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -260,7 +260,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set variables (plain variables, not secrets)
-        uses: quantcdn/quant-cloud-environment-var-action@d9b08f58ad3406a01fbb75725a9065e50a30fa99 # v1.0.3
+        uses: quantcdn/quant-cloud-environment-var-action@54290b4e129254a1074a37be0d74fa7837ccd480 # v1.0.4
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -273,7 +273,7 @@ jobs:
             LOG_LEVEL=debug
 
       - name: Redeploy so the containers read the new values
-        uses: quantcdn/quant-cloud-environment-state-action@b1b75af5d772bb295bc067f225a7bb3a952bd7a1 # v4.0.1
+        uses: quantcdn/quant-cloud-environment-state-action@64ba68816e09e22c9015f07f44f5c0538ce09374 # v4.0.2
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -289,7 +289,7 @@ jobs:
         type: [database, filesystem]
     steps:
       - name: Back up production
-        uses: quantcdn/quant-cloud-environment-backup-action@9c46be7346ab2ec78f7dd5e0b0795ce2eff3eca2 # v4.4.2
+        uses: quantcdn/quant-cloud-environment-backup-action@2d268c726e9c35472b028fbfab660600d4f2d2aa # v4.4.4
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -303,7 +303,7 @@ jobs:
           max_retries: '60'            # 60 x 10 s = 10 minutes
 
       - name: Delete backups older than 30 days
-        uses: quantcdn/quant-cloud-environment-backup-action@9c46be7346ab2ec78f7dd5e0b0795ce2eff3eca2 # v4.4.2
+        uses: quantcdn/quant-cloud-environment-backup-action@2d268c726e9c35472b028fbfab660600d4f2d2aa # v4.4.4
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -319,7 +319,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Back up staging first (the sync overwrites it)
-        uses: quantcdn/quant-cloud-environment-backup-action@9c46be7346ab2ec78f7dd5e0b0795ce2eff3eca2 # v4.4.2
+        uses: quantcdn/quant-cloud-environment-backup-action@2d268c726e9c35472b028fbfab660600d4f2d2aa # v4.4.4
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -332,7 +332,7 @@ jobs:
 
       - name: Copy production's database into staging
         id: sync
-        uses: quantcdn/quant-cloud-environment-sync-action@aeb054d52e2067ac7eb6694c07df2c4cde262c5f # v4.0.0
+        uses: quantcdn/quant-cloud-environment-sync-action@f2af81fba5c61313589ab2e25fe889f7a4ffed84 # v4.1.1
         with:
           api_key: ${{ secrets.QUANT_API_KEY }}
           organization: ${{ secrets.QUANT_ORGANIZATION }}
@@ -354,7 +354,7 @@ jobs:
 
 ```yaml
       - name: Deploy site, edge functions and rules
-        uses: quantcdn/deploy-action@9bf8cae8497ab6628d4b248db9eb11464f37e1e5 # v7.0.1
+        uses: quantcdn/deploy-action@d6d776177f9fbdf781a7d09c071185a9e509fcc3 # v7.1.1
         with:
           customer: ${{ vars.QUANT_CUSTOMER }}
           project: ${{ vars.QUANT_PROJECT }}
@@ -376,7 +376,7 @@ drift handling: `quant-edge-functions-and-kv`.
 
 ```yaml
       - name: Index search records
-        uses: quantcdn/search-action@a714ca5316f148e934dca97caf8c4409e6092970 # v2.1.0
+        uses: quantcdn/search-action@908ed45742d8f9c80abe4155b93b0c9d13a90ba5 # v2.1.1
         with:
           customer: ${{ vars.QUANT_CUSTOMER }}
           project: ${{ vars.QUANT_PROJECT }}
@@ -452,7 +452,7 @@ deploy-static:
   stage: deploy
   needs: [build]
   image:
-    name: quantcdn/cli:7.0.1
+    name: quantcdn/cli:7.2.0
     entrypoint: [""]                    # the image's entrypoint is quant; GitLab needs a shell
   variables:
     QUANT_ENDPOINT: https://api.quantgov.cloud/v1   # public: https://api.quantcdn.io/v1
