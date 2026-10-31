@@ -258,6 +258,11 @@ containers, unless you set `singleTaskOnly`. For zero-downtime deploys on a stat
     or the API). A redeploy alone does not read the compose file.
   - In the dashboard, define the volume on the environment's **Volumes** tab. Then, on **Edit
     Config**, add a mount point for it in the container.
+- **Origin Protection:** turn it on for every container with an exposed port (dashboard: the
+  environment, **Details** tab, **Edit config**, the container, **Enable origin protection**; API `originProtection` and
+  `originProtectionConfig` with `ipAllow` and `redirectHost`). Direct requests to the origin or
+  preview domain are then blocked, and traffic must come through a Quant project. Hardening
+  order and the WAF: `quant-security-best-practice`.
 - **Sensitive files:** put files that must not be public (private uploads, exports, keys) on their
   own volume, mounted outside the document root. Do not put them in a subdirectory of a public
   uploads volume.
@@ -314,7 +319,7 @@ API calls for all of these: [references/api.md](references/api.md).
 - Backups and sync: https://docs.quantcdn.io/cloud/03-environment-management/08-managing-backups/
 - Base images: https://docs.quantcdn.io/cloud/01-introduction-to-quant-cloud/06-quant-base-images/
   (source: https://github.com/quantcdn-templates/app-node, https://github.com/quantcdn-templates/app-apache-php)
-- Related skills: `quant-platform`, `qc-cli` (logs, exec, ssh, backups), `quant-templates` (choose or
+- Related skills: `quant-security-best-practice` (Origin Protection, WAF, hardening), `quant-platform`, `qc-cli` (logs, exec, ssh, backups), `quant-templates` (choose or
   write a template), `quant-ci-github-actions` (full workflow), `quant-iac` (Terraform/Pulumi),
   `quant-cms-integrations` (Drupal and WordPress)
 
