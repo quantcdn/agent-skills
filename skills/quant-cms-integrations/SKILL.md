@@ -100,8 +100,8 @@ Submodules: `quant_api` (required), `quant_cron`, `quant_purger` (needs `drupal/
 
 Details, every field, queue names and WP-CLI: [references/wordpress.md](references/wordpress.md).
 
-1. **Install.** Plugin "QuantCDN" from wordpress.org (slug `quantcdn`), version **1.6.0 or later**,
-   from `Plugins > Add New` or `wp plugin install quantcdn --activate`. The GitHub `develop`
+1. **Install.** Plugin "QuantCDN" from wordpress.org (slug `quant`), version **1.6.0 or later**,
+   from `Plugins > Add New` or `wp plugin install quant --activate`. The GitHub `develop`
    branch (1.5.2) is older; do not install from it.
 2. **Connect.** `Settings > QuantCDN`, tab **Settings**:
    - **API Endpoint**: `https://api.quantcdn.io` (default) or `https://api.quantgov.cloud`.
@@ -288,7 +288,7 @@ Hide the editorial host: an unguessable name, basic authentication, IP limits or
 - WordPress: https://docs.quantcdn.io/integrations/wordpress/
 - Go-live: https://docs.quantcdn.io/integrations/go-live-process/
 - Module: https://github.com/quantcdn/drupal and https://www.drupal.org/project/quantcdn
-- Plugin: https://wordpress.org/plugins/quantcdn
+- Plugin: https://wordpress.org/plugins/quant/
 - Templates: https://github.com/quantcdn-templates
 - Related skills: `quant-cloud-apps` (compose, variables, volumes, cron, health), `quant-templates`,
   `quant-static-sites` (deploy and unpublish), `quant-domains-cache-purge` (domains, certificates, purge),

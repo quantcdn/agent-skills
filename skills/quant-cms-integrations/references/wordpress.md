@@ -1,7 +1,7 @@
 # WordPress plugin reference
 
-Plugin: "QuantCDN" on wordpress.org, slug `quantcdn`, stable 1.6.0 (requires PHP 7.4, tested to
-WordPress 6.8.2). Source: GitHub `quantcdn/wordpress`; its `develop` branch is 1.5.2 and older than
+Plugin: "QuantCDN" on wordpress.org, slug `quant` (folder `quant/`), stable 1.6.0 (requires PHP 7.4, tested
+to WordPress 6.8). Source: GitHub `quantcdn/wordpress`; its `develop` branch is 1.5.2 and older than
 the release. Admin page: `Settings > QuantCDN`, tabs Seed Settings, Settings, Cron, Cache.
 
 ## Settings tab (option `wp_quant_settings`)
