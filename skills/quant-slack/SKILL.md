@@ -62,6 +62,23 @@ Slack identity is not automatically a portal account, administrator role or auth
 different operation. Scope the requested permission to the exact operation presented to the human;
 ask again if that operation changes materially.
 
+## Follow up what you ask
+
+Do not post a question, or a message that asks people for something, unless you will act on the
+answer. Before you post:
+
+1. Decide what each answer leads to, and make sure the job can still do it when the answer arrives.
+2. Save the interaction ID or the thread `ts` with the job's state, on disk or in a job store,
+   not only in memory.
+3. Start a watcher: poll `GET /interactions/{interactionId}` for buttons, and read the thread
+   (`GET /threads/{channel}/{threadTs}`) for text replies. Back off as the guidance above says.
+4. Make the watcher survive a restart. For example, a scheduled job, or a check that runs when
+   the agent's next session starts and resumes from the saved state.
+
+When the answer arrives, do what it leads to, or tell the person who asked why you cannot. Stop
+watching when the question closes or the thread is answered. If you cannot keep a watcher
+running until then, ask the user directly instead of posting to Slack.
+
 ## Common problems
 
 - 401: check token validity and platform, without logging the credential.
