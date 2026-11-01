@@ -186,7 +186,12 @@ API body: [references/api.md](references/api.md#create-an-application).
   `set --file .env`, `set KEY --stdin`). Use secrets for anything sensitive; secret values cannot be
   read back, and `qc env vars` does not manage secrets (use the dashboard).
 - **A change reaches the containers only after a redeploy** (dashboard **Redeploy**,
-  `qc env state redeploy`, or the state action).
+  `qc env state redeploy`, or the state action). You can make several variable and secret changes
+  first; one redeploy applies all of them.
+- **A key is either a variable or a secret, never both.** Saving a secret whose name is still a
+  variable (or the reverse) is refused. To move a value to a secret (do this for keys, certificates
+  and tokens): read the value, delete the variable, add the secret with the same name, then
+  redeploy. The running containers keep the old value until the redeploy, so there is no gap.
 - Precedence, highest first: container-level variables (including compose `environment:`), then
   environment-level variables, then secrets.
 
@@ -290,6 +295,8 @@ API calls for all of these: [references/api.md](references/api.md).
 | App dials `db` or `localhost` for its database | Compose `environment:` sets `DB_*` and overrides the injected values | Remove them from the deployed compose; use the override file |
 | No `DB_*` variables at all | The app was created without a database (wrong body shape, or toggle off) | Create it with `"database": {"engine": ...}`; check the app shows a database |
 | Variable or secret change has no effect | Running containers keep the values they started with | Redeploy |
+| `Cannot create/update secret '<KEY>' as it already exists as an environment variable` (or the reverse) | The key is still stored as the other kind | Delete the variable (or secret) first, then save, then redeploy |
+| Redeploy warns `Redeployed the current task definition unchanged: pending variable, secret or attachment changes could not be applied` | The new configuration could not be built; the reason is in brackets | Fix the cause in the reason, then redeploy again. The environment still runs its previous configuration |
 | Cache variables missing after attaching | Attachments render on the next deploy | Redeploy |
 | `NOPERM` from the cache | Key written outside `CACHE_PREFIX` | Prefix keys with `CACHE_PREFIX` |
 | `permission denied` writing to a volume | Writer is not UID 1000 | Run as UID 1000; `chown` to 1000 |
