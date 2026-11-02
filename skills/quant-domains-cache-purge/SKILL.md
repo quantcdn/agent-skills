@@ -1,6 +1,6 @@
 ---
 name: quant-domains-cache-purge
-description: Use when putting a custom domain on a QuantCDN or QuantGov project or debugging one - adding it (dashboard, `/api/v2` domains API, Terraform `quant_domain`), the DNS records (CNAME for subdomains, A records or ALIAS/ANAME for the apex), certificate states (QuantCDN issues after DNS points at Quant, "Renew"; QuantGov shows DNS-validation CNAME records, "DNS Validation Pending", "TLS Pending"), "Domain already exists", wildcard domains. Also use for how Quant caches a response (`Cache-Control`, `s-maxage`, `private`/`no-store`, `Surrogate-Control`, defaults, query strings, browser caching) and for purging - by path, `/*`, wildcard patterns, cache keys (`Cache-Keys`), soft purge, timing, what purges automatically, when to purge after a deploy or rule change - and for cache warming or the crawler as a static-copy tool (schedules, limits, domain verification). Not for rule fields (`quant-rules-and-routing`) or the crawler that fills a search index (`quant-search`).
+description: Use when putting a custom domain on a QuantCDN or QuantGov project or debugging one - adding it (dashboard, `/api/v2` domains API, Terraform `quant_domain`), the DNS records (CNAME for subdomains, A records or ALIAS/ANAME for the apex), certificate states (QuantCDN issues after DNS points at Quant, "Renew"; QuantGov shows DNS-validation CNAME records, "DNS Validation Pending", "TLS Pending"), "Domain already exists", wildcard domains. Also use for how Quant caches a response (`Cache-Control`, `s-maxage`, `private`/`no-store`, `Surrogate-Control`, defaults, query strings, browser caching) and for purging - by path, `/*`, wildcard patterns, cache keys (`Cache-Keys`), soft purge, timing, what purges automatically, when to purge after a deploy or rule change - and for cache warming or the crawler as a static-copy tool (schedules, limits, domain verification), and CDN access logs (`/logs` API). Not for rule fields (`quant-rules-and-routing`) or the crawler that fills a search index (`quant-search`).
 ---
 
 # Domains, caching and purge on Quant
@@ -229,6 +229,34 @@ for archive, failover or static serving. It purges the paths it changes. For a c
 - `include` and `exclude` are **regular expressions** (`^/admin`, `\.pdf$`), not globs.
 
 Full field list and API calls: [references/api.md](references/api.md).
+
+## Access logs
+
+Read a project's CDN access log entries (one per request at the edge) with the platform API.
+Results are always limited to the project. Entries come oldest first, one page at a time.
+
+```bash
+curl -s -H "Authorization: Bearer $QUANT_API_KEY" \
+  --get "https://dashboard.quantcdn.io/api/v2/organizations/<org>/projects/<project>/logs" \
+  --data-urlencode 'startTime=2026-11-01T00:00:00Z' --data-urlencode 'endTime=2026-11-01T06:00:00Z' \
+  --data-urlencode 'filter=$.status_code >= 500' --data-urlencode 'limit=1000'
+```
+
+| Query parameter | Meaning |
+|---|---|
+| `startTime`, `endTime` | ISO 8601 or Unix epoch milliseconds |
+| `domain` | Only entries for this domain |
+| `filter` | `$.field op value` terms joined with `&&` and `\|\|`, with parentheses. Operators `=`, `!=`, `<`, `<=`, `>`, `>=`. Quote strings; `*` is a wildcard with `=` and `!=`, for example `$.uri = "/blog/*"`. Nested braces are rejected |
+| `limit` | Entries per page, 1 to 10000 (default 100) |
+| `nextToken` | The `nextToken` from the previous response, unchanged |
+
+The response is `{ "logs": [...], "count": N, "nextToken": "..." }`. Each entry has `timestamp`,
+`domain`, `method`, `uri`, `status_code`, `cache_status`, `client_ip`, `user_agent`, `bytes`,
+`time_taken` and more. Repeat the call with `nextToken` until it is `null`; a page can hold fewer
+entries than `limit`. The token needs the `projects:read` scope. A `404` means access logs are not
+available for that project. On QuantGov use `https://dash.quantgov.cloud`.
+
+For logs from your own edge functions, see `quant-edge-functions-and-kv`.
 
 ## Common problems
 
