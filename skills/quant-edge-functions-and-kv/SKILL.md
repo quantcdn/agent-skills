@@ -1,6 +1,6 @@
 ---
 name: quant-edge-functions-and-kv
-description: Use when writing, deploying or debugging Quant edge functions on QuantCDN or QuantGov - request functions, auth functions (auth middleware), content filters, inline (`{{QUANT_FN:uuid}}`) and scheduled functions - or when a function uses a KV store (secrets, `increment`, ledgers). Covers the function body contract (`event.request`, `event.geo`, `quant-client-ip`, returning a `Response`), auth functions returning 201 to continue, `quant/edge-functions.json` and `quant/edge-rules.json` (UUID identity, `function_ref`), deploying with `quantcdn/deploy-action` (`functions`, `rules`, `api-token`), KV store IDs and linking, `kvStore.open` handles, `for await` over `list`/`search` with `maxPages`, `KVError` codes, limits and `verifyChain`. Also use when an auth path returns 503, an auth rule lets everyone through, a function sees the wrong path, a KV call says "Access to KV store ... is not allowed", a KV loop throws `LIMIT_EXCEEDED`, a page is empty with `hasMore: true`, or an inline token is not replaced.
+description: Use when writing, deploying or debugging Quant edge functions on QuantCDN or QuantGov - request functions, auth functions (auth middleware), content filters, inline (`{{QUANT_FN:uuid}}`) and scheduled functions - or when a function uses a KV store (secrets, `increment`, ledgers). Covers the body contract (`event.request`, `event.geo`, `quant-client-ip`, returning a `Response`), auth functions returning 201 to continue, `quant/edge-functions.json` and `quant/edge-rules.json` (UUID identity, `function_ref`), deploying with `quantcdn/deploy-action` (`functions`, `rules`, `api-token`), KV store IDs and linking, `kvStore.open` handles, `for await` paging (`maxPages`), `KVError` codes, limits and `verifyChain`, and function logs (`console.log`). Also use when an auth path returns 503, an auth rule lets everyone through, a function sees the wrong path, a KV call says "Access to KV store ... is not allowed", a KV loop throws `LIMIT_EXCEEDED`, a page is empty with `hasMore: true`, or an inline token is not replaced.
 ---
 
 # Edge functions and KV on Quant
@@ -77,6 +77,49 @@ Response handling:
   such as `age`, are protected).
 - An uncaught exception fails the request with a server error. Catch errors and return your own
   `Response` with a clear status.
+
+## Logs from a function
+
+`console.log`, `console.info`, `console.warn`, `console.error`, `console.debug` and `quantLog()`
+write events to the project. Read them in the dashboard under **Compute, Edge function logs**, or
+with the API below. Scheduled runs log the same way.
+
+```js
+console.log('cart', { items: 3 });       // message: cart {"items":3}, level log
+console.error('origin failed', status);  // level error
+quantLog({ user: id, action: 'login' }); // type function, the object is the message
+```
+
+- An event has a time, a type (`console` or `function`), a level (console only), the function
+  UUID and the message. Quant sets the organization, project and function. A function cannot
+  write events into another project.
+- Per run: at most 100 console lines, then one `warn` event that says how many lines were
+  dropped. A message longer than 8,192 characters is cut and marked `truncated`.
+- Events show up within about 10 minutes and are kept for 31 days.
+- The same page and API also show WAF hits (`waf-hit`) and static failover events
+  (`static-failover`).
+- Anyone with read access to the project can read these events. Do not log secrets, tokens or
+  personal data.
+
+```bash
+curl -s -H "Authorization: Bearer $QUANT_API_TOKEN" \
+  "https://dashboard.quantcdn.io/api/v2/organizations/<org>/projects/<project>/edge-events?type=console,function&level=error&limit=100"
+```
+
+| Query parameter | Meaning |
+|---|---|
+| `type` | Comma-separated: `console`, `function`, `waf-hit`, `static-failover` |
+| `function` | Only events from this function UUID |
+| `level` | Console events at this level: `log`, `info`, `warn`, `error`, `debug` |
+| `search` | Case-insensitive text in the message (up to 200 characters) |
+| `startTime`, `endTime` | ISO 8601 or Unix epoch milliseconds |
+| `limit` | Events per page, 1 to 10000 (default 100) |
+| `nextToken` | The `nextToken` from the previous response, unchanged |
+
+The response is `{ "events": [...], "count": N, "nextToken": "..." }`. Each event has
+`timestamp`, `type`, `level`, `function_uuid`, `message` and `truncated`; WAF events add `host`,
+`path`, `client_ip`, `rule_id` and `waf_mode`. Repeat the call with `nextToken` until it is `null`.
+The token needs the `projects:read` scope. On QuantGov use `https://dash.quantgov.cloud`.
 
 ## Auth functions
 
@@ -366,6 +409,8 @@ outcome with it. See [references/kv-ledgers.md](references/kv-ledgers.md).
 | `for await` loop throws `LIMIT_EXCEEDED` | More than `maxPages` pages (default 10) | Resume with `e.cursor`, raise `maxPages` (at most 100), or page across requests |
 | Loop stops early: a page has no items | Code stopped at the first empty page, but `hasMore` is `true` (`pageEnd` `bytes` or `budget`) | Follow `cursor` until `hasMore` is `false`, or use `for await` |
 | `e.name === 'KVError'` checks miss errors, or `instanceof Error` checks are too broad | Old error test | Use `e instanceof kvStore.KVError` and read `e.code` and `e.retryable` |
+| `console.log` output is not in Edge function logs | Events take up to about 10 minutes; the time range or `type` filter excludes them | Wait, widen the time range, include `console` |
+| Only the first 100 lines of a run appear, then "Console output limit reached" | More than 100 console lines in one run | Log less per run; log a summary instead of each item |
 | Ledger `append` timed out; unsure if it was written | Outcome unknown (`UNAVAILABLE`) | Retry with the same `idempotencyKey` (from `e.idempotencyKey` if you sent none) |
 
 ## Further reading
