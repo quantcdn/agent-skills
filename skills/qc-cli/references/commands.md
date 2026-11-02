@@ -42,9 +42,12 @@ accepts `--org`, `--app` and `--env` overrides unless noted. Most commands also 
 | `qc env vars set <key> --stdin` | Value from stdin; keeps it out of argv and shell history |
 | `qc env vars set --file <path>` | Sets each `KEY=VALUE` in a .env file, keeps variables not in the file. Refuses the whole file on any bad line, invalid name, duplicate or unclosed quote |
 | `qc env vars unset <key> [-y, --yes]` | Confirms on a terminal unless `--yes`. Reports "Nothing changed" for a missing key |
+| `qc env secrets list [--json]` | Secret names only; values are write-only (0.8.0+) |
+| `qc env secrets set <key> --stdin` | Value from stdin (recommended). Also `set <key> <value>` (warns) and `set --file <path>` |
+| `qc env secrets unset <key> [-y, --yes]` | Confirms on a terminal unless `--yes`. Reports "Nothing changed" for a missing key |
 
-All four take `--org`, `--app`, `--env`. A write does not redeploy; it applies on the next
-`qc env state redeploy`. Secrets are not covered; use the dashboard.
+All of them take `--org`, `--app`, `--env`. A write does not redeploy; it applies on the next
+`qc env state redeploy`.
 
 ## Exec and SSH
 

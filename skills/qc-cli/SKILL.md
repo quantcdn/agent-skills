@@ -1,6 +1,6 @@
 ---
 name: qc-cli
-description: Use when working with the `qc` command (npm package `@quantcdn/quant-cloud-cli`) on Quant Cloud applications and environments on QuantCDN or QuantGov - log in and switch platforms (`qc login`, `qc platform`), set org/app/env context (`.quant.yml`, `--org --app --env`), read logs (`qc env logs`), read or set environment variables (`qc env vars`), run commands (`qc exec run`, `qc ssh`), start/stop/redeploy an environment, create or download backups, or watch metrics. For static sites, content, purge, redirects or edge functions use `quant-cli` instead; `qc` is not the content CLI.
+description: Use when working with the `qc` command (npm package `@quantcdn/quant-cloud-cli`) on Quant Cloud applications and environments on QuantCDN or QuantGov - log in and switch platforms (`qc login`, `qc platform`), set org/app/env context (`.quant.yml`, `--org --app --env`), read logs (`qc env logs`), read or set environment variables (`qc env vars`) and secrets (`qc env secrets`), run commands (`qc exec run`, `qc ssh`), start/stop/redeploy an environment, create or download backups, or watch metrics. For static sites, content, purge, redirects or edge functions use `quant-cli` instead; `qc` is not the content CLI.
 ---
 
 # qc CLI (Quant Cloud CLI)
@@ -12,9 +12,9 @@ scaling), use `quant-cloud-apps`. For static-site and CDN work, use `quant-cli`.
 
 ## Applies to
 
-Both platforms: QuantCDN (public) and QuantGov (gov). `@quantcdn/quant-cloud-cli` 0.7.2, Node.js
-required. Checked against the 0.7.2 source and the cloud-cli pages of the public docs, 2026-10.
-`qc env vars` is new in 0.7.0, and `--platform` works from 0.7.1. Run `qc --version` and upgrade
+Both platforms: QuantCDN (public) and QuantGov (gov). `@quantcdn/quant-cloud-cli` 0.8.0, Node.js
+required. Checked against the 0.8.0 source and the cloud-cli pages of the public docs, 2026-11.
+`qc env vars` is new in 0.7.0, `--platform` works from 0.7.1, and `qc env secrets` is new in 0.8.0. Run `qc --version` and upgrade
 if you have an older version.
 
 `qc` is the **cloud** CLI. It does not push static content, purge the CDN cache or manage edge
@@ -109,6 +109,7 @@ env: production
 | Select context | `qc org select [id]`, `qc app select [id]`, `qc env select [name]` |
 | List or create environments | `qc env list`, `qc env create <name> --clone-from <env> --min-capacity 1 --max-capacity 10` (both take only `--org`/`--app`, no `--env`) |
 | Environment variables | `qc env vars list\|get\|set\|unset` (see below) |
+| Secrets (write-only) | `qc env secrets list\|set\|unset` (see below) |
 | Read logs | `qc env logs --env production -n 200`, `qc env logs --env production -f` |
 | Live metrics | `qc env metrics --env production -r 5` |
 | Stop, start, redeploy | `qc env state stop`, `qc env state start`, `qc env state redeploy --tag <imageTag>` |
@@ -167,8 +168,27 @@ qc env vars unset OLD_FLAG --yes --org example-org --app example-app --env produ
 - `unset` asks for confirmation on a terminal; pass `--yes` in scripts (it does not prompt when
   there is no terminal). Unsetting a variable that is not set reports that nothing changed.
 - Names start with a letter or `_`, then letters, digits, `_`, `.` or `-`.
-- These are plain environment variables. Secrets are not managed by `qc env vars`; set them in the
-  dashboard (**Environment & Secrets**).
+- These are plain environment variables. Use `qc env secrets` for keys, tokens and certificates.
+
+### Secrets
+
+```bash
+qc env secrets list  --org example-org --app example-app --env production          # names only
+printf '%s' "$API_TOKEN" | qc env secrets set API_TOKEN --stdin \
+  --org example-org --app example-app --env production
+qc env secrets set   GITHUB_APP_PRIVATE_KEY --stdin --env production < key.pem    # multi-line is kept
+qc env secrets set   --file .env.secrets --org example-org --app example-app --env production
+qc env secrets unset OLD_TOKEN --yes --org example-org --app example-app --env production
+```
+
+- **Values are write-only.** `list` prints names only and there is no `get`.
+- Same rules as `qc env vars`: a change takes effect on the next redeploy, `--stdin` keeps the value
+  out of argv and shell history (`set KEY VALUE` works but warns), `set --file` merges and checks the
+  whole file first, and `unset` asks on a terminal unless `--yes`.
+- **A name is either a variable or a secret, never both**; saving the other kind is refused with
+  HTTP 409. To move a variable to a secret: read it with `qc env vars get KEY`, then
+  `qc env vars unset KEY`, `qc env secrets set KEY --stdin`, and redeploy. The running containers
+  keep the old value until the redeploy.
 
 ### Backups
 
@@ -277,6 +297,8 @@ with `${PIPESTATUS[0]}` in bash (or `set -o pipefail`), because the pipeline hid
 | A script hangs after `qc env create` printed success | `env create` always ends with "Set '<name>' as active environment?" | Run it where a person can answer, or create the environment with the API or the environment action in CI |
 | `qc env vars set` worked but the app still sees the old value | A variable change does not redeploy | `qc env state redeploy` |
 | `qc env vars` is not a command | `qc` older than 0.7.0 | `npm install -g @quantcdn/quant-cloud-cli` |
+| `qc env secrets` is not a command | `qc` older than 0.8.0 | `npm install -g @quantcdn/quant-cloud-cli` |
+| `already exists as an environment variable` (HTTP 409) on `qc env secrets set` | The name is still a variable | `qc env vars unset KEY`, then set the secret, then redeploy |
 | `qc env logs -n 1000` prints far fewer lines | `-n` trims the platform's response; it cannot add lines | Use `-f`, or the dashboard logs |
 | `AWS CLI is required but not installed` from `qc ssh` | `qc ssh` runs through the `aws` CLI | Install the `aws` CLI so it is on your PATH; enable SSH for the environment in the dashboard |
 | `403` on `qc ssh` or `qc exec run` | Your user lacks access on this environment | Ask an org admin for access |
@@ -298,4 +320,4 @@ with `${PIPESTATUS[0]}` in bash (or `set -o pipefail`), because the pipeline hid
 - Related skills: `quant-platform` (public vs gov), `quant-cloud-apps` (build and configure
   apps), `quant-cli` (content CLI), `quant-ci-github-actions` (CI instead of `qc`)
 
-<!-- checked against npm:@quantcdn/quant-cloud-cli 0.7.2 -->
+<!-- checked against npm:@quantcdn/quant-cloud-cli 0.8.0 -->

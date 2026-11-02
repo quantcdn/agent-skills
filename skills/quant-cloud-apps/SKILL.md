@@ -183,15 +183,16 @@ API body: [references/api.md](references/api.md#create-an-application).
 
 - Set them per environment in the dashboard (**Environment & Secrets**), the API, or with
   `qc env vars set KEY VALUE --org --app --env` (`qc` 0.7.0+; also `list`, `get`, `unset`,
-  `set --file .env`, `set KEY --stdin`). Use secrets for anything sensitive; secret values cannot be
-  read back, and `qc env vars` does not manage secrets (use the dashboard).
+  `set --file .env`, `set KEY --stdin`). Use secrets for anything sensitive: the dashboard, the API,
+  or `qc env secrets list|set|unset` (`qc` 0.8.0+). Secret values cannot be read back.
 - **A change reaches the containers only after a redeploy** (dashboard **Redeploy**,
   `qc env state redeploy`, or the state action). You can make several variable and secret changes
   first; one redeploy applies all of them.
 - **A key is either a variable or a secret, never both.** Saving a secret whose name is still a
   variable (or the reverse) is refused. To move a value to a secret (do this for keys, certificates
   and tokens): read the value, delete the variable, add the secret with the same name, then
-  redeploy. The running containers keep the old value until the redeploy, so there is no gap.
+  redeploy (with `qc`: `qc env vars unset KEY`, then `qc env secrets set KEY --stdin`). The running
+  containers keep the old value until the redeploy, so there is no gap.
 - Precedence, highest first: container-level variables (including compose `environment:`), then
   environment-level variables, then secrets.
 
