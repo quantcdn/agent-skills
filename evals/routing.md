@@ -28,6 +28,8 @@ Exactly one primary skill per prompt.
 | Which GitHub Action deploys my static site and which version do I pin? | quant-ci-github-actions |
 | Write a workflow that builds an image and creates an environment on push. | quant-ci-github-actions |
 | Our GitLab pipeline must deploy the static site and redeploy a Quant Cloud environment without a person logging in. | quant-ci-github-actions |
+| Move our GitHub Actions jobs and their repository secrets onto Quant runners without re-entering every secret. | quant-ci-runners |
+| A job with runs-on [self-hosted, quant, build, arm64] stays queued forever. | quant-ci-runners |
 | Add a custom domain and tell me which CNAME to set and why the certificate is pending. | quant-domains-cache-purge |
 | Purge one URL from the cache after a content change. | quant-domains-cache-purge |
 | Can the Quant crawler warm the cache after a full purge, and how do I schedule it? | quant-domains-cache-purge |

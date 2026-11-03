@@ -219,6 +219,11 @@ and `BUILD_PLATFORM=linux/arm64`). QEMU on x86_64 can be much slower for compila
 compression. Keep a conditional QEMU step for cross-architecture or multi-architecture builds;
 skip it for a native single-architecture build. The runner needs Docker and Buildx.
 
+Quant CI runners need several labels, so a single-label `RUNNER_TYPE` does not select them. Set
+`RUNNER_TYPE` to a JSON array, for example `["self-hosted","quant","build","arm64"]`, and use
+`runs-on: ${{ vars.RUNNER_TYPE && fromJSON(vars.RUNNER_TYPE) || 'ubuntu-latest' }}`. Pools, labels,
+and moving secrets off GitHub: `quant-ci-runners`.
+
 Workflows with per-environment selection read `BUILD_PLATFORMS` (JSON keyed by the Quant
 environment name) before `BUILD_PLATFORM`. Preserve other entries when changing one environment.
 Older workflow copies require the selection and QEMU steps; setting a variable alone does not
