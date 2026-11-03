@@ -33,6 +33,9 @@ credential path when needed rather than asking for the token in chat.
 2. Select the bot and channel for the user's task. Never guess IDs or default to a broad channel.
 3. Send a message, upload an image, or create an interaction using the relevant reference below.
 
+`GET /slack-bots/api-enabled` is filtered, and it does not say what it left out. A bot or channel you
+expected can be missing with no error: see [Bot or channel missing](#bot-or-channel-missing).
+
 Existing API access is limited to permitted public channels. Bots with restrictive user lists
 can refuse API requests because the calling token is not a mapped Slack user. Do not widen bot
 permissions, change channel visibility or reinstall an app without the user's authorisation.
@@ -78,6 +81,23 @@ answer. Before you post:
 When the answer arrives, do what it leads to, or tell the person who asked why you cannot. Stop
 watching when the question closes or the thread is answered. If you cannot keep a watcher
 running until then, ask the user directly instead of posting to Slack.
+
+## Bot or channel missing
+
+The list returns 200 either way. Work through these in order:
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `{"bots":[]}` | The token belongs to the other platform or another organisation. Each bot exists on one dashboard only | Create the token on the dashboard and organisation where the bot is configured |
+| `{"bots":[]}`, right platform and organisation | API access is off for the bot, the bot is not active, or the bot has an allowed or denied user list | In the bot editor, turn on API access. Clear the user lists, or use another bot |
+| Bot listed, channel missing | The channel is not in the bot's **API channels**. Allowed channels and API channels are two separate lists, and the channel must be in both when allowed channels is not empty | Tick the channel under API access in the bot editor, and save |
+| Still missing | **The bot is not a member of the channel.** The dashboard setting does not join it | In Slack, in that channel: `/invite @<bot name>` |
+| Still missing | The channel is private or archived | Use a public channel. Private channels are not available through the API |
+| Still missing after a fix | Channel details are cached for a short time | Wait a few minutes, then list again |
+
+Changing a bot's settings or inviting it to a channel is the user's decision: tell them which fix
+applies. A channel's ID is at the bottom of its details in Slack, if you need to confirm which
+channel is which.
 
 ## Common problems
 
