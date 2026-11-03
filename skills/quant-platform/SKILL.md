@@ -60,6 +60,7 @@ look for.
 | Quant Cloud apps: containers, compose, databases, volumes, scaling, environments | `quant-cloud-apps` |
 | Templates: choose a starter (app or static), or write your own template | `quant-templates` |
 | CI: GitHub Actions workflows and action versions, other CI systems | `quant-ci-github-actions` |
+| CI runners: run GitHub Actions jobs on Quant, CI secrets and variables, migrate from GitHub-hosted runners | `quant-ci-runners` |
 | Domains, DNS, certificates, cache behaviour, purge, cache warming with the crawler | `quant-domains-cache-purge` |
 | Infrastructure as code: Terraform `quantcdn/quant`, Pulumi `@quantcdn/pulumi-quant` | `quant-iac` |
 | CMS integrations: Drupal module, WordPress plugin, Drupal/WordPress on Quant Cloud | `quant-cms-integrations` |

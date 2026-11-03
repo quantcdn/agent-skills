@@ -21,6 +21,7 @@ own project. To change the skills themselves, see `CONTRIBUTING.md`.
 | Containerised apps, compose, environments | `quant-cloud-apps` |
 | Use or write a template | `quant-templates` |
 | CI pipelines: GitHub Actions workflows, GitLab and other CI | `quant-ci-github-actions` |
+| Run GitHub Actions jobs on Quant CI runners, CI secrets and variables, migrate off GitHub-hosted runners | `quant-ci-runners` |
 | Domains, DNS, certificates, cache, purge | `quant-domains-cache-purge` |
 | Terraform and Pulumi | `quant-iac` |
 | Drupal and WordPress | `quant-cms-integrations` |
