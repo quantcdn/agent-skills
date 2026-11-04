@@ -17,7 +17,8 @@ secrets live.
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 GitHub Actions only. CI runner pools must be enabled for your Quant organisation; if the
 dashboard does not show **CI runner pools** on the organisation's Resources page, contact support.
-Checked 2026-11-03 against the dashboard, the values API and the GitHub Actions runner 2.338.
+Checked 2026-11-03 against the dashboard, the values API and the GitHub Actions runner 2.338;
+OIDC checked 2026-11-04 on arm64 and x64 runners.
 
 ## Pools
 
@@ -116,6 +117,51 @@ curl -sS -X PUT -H "Authorization: Bearer $QUANT_API_TOKEN" -H 'Content-Type: ap
 curl -sS -X DELETE -H "Authorization: Bearer $QUANT_API_TOKEN" "$API/DEPLOY_KEY?repo=acme/web"
 ```
 
+## Cloud credentials: use OIDC
+
+For AWS, Azure or Google Cloud, use GitHub OIDC, not stored keys. The job asks GitHub for a
+short-lived token and exchanges it for cloud credentials that expire with the job. Nothing
+long-lived is stored, on GitHub or in Quant.
+
+OIDC works unchanged on Quant runners: GitHub issues the token, not the runner. Keep
+`permissions: id-token: write` and your existing login action:
+
+```yaml
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  deploy:
+    runs-on: [self-hosted, quant, build, x64]
+    environment: production
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE }}   # the role's ARN, as a repository variable
+          aws-region: ap-southeast-2
+```
+
+The cloud role trusts the token's `sub` claim. Get the trust right:
+
+- **Read your repository's subject format first.** It differs between repositories:
+  `gh api repos/<owner>/<repo>/actions/oidc/customization/sub`. Use the `sub_claim_prefix` it
+  returns. With `"use_immutable_subject": false` it is `repo:<owner>/<repo>`; with `true` it
+  includes the IDs, for example `repo:<owner>@<owner-id>/<repo>@<repo-id>`.
+- **Trust an environment, not a branch.** Match the whole subject with `StringEquals`, for
+  example `<sub_claim_prefix>:environment:production`. A subject such as
+  `<sub_claim_prefix>:ref:refs/heads/main` trusts every workflow and job on that branch.
+- **Protect the environment before you create the role.** In the repository settings, give it
+  deployment branches (for example `main` only) and, for production, required reviewers. If a
+  workflow names an environment that does not exist, GitHub creates it with no rules, and the
+  role then trusts a job from any branch.
+- **Check the audience.** AWS expects `aud` = `sts.amazonaws.com`, the default of
+  `aws-actions/configure-aws-credentials`.
+- To stop repository administrators from skipping a production approval, set
+  `can_admins_bypass` to `false` on that environment.
+
+Use Quant secrets only for what OIDC cannot replace: third-party API tokens, signing keys, and
+credentials for systems without OIDC support.
+
 ## Migrate from GitHub-hosted runners
 
 Full procedure, the export workflow and the import script:
@@ -123,7 +169,8 @@ Full procedure, the export workflow and the import script:
 
 1. **Inventory.** List each repository's workflows, the jobs' `runs-on`, and the secret and
    variable names (`gh secret list`, `gh secret list --org`, `gh secret list --env <name>`,
-   `gh variable list`). Secret values cannot be read from the GitHub API.
+   `gh variable list`). Secret values cannot be read from the GitHub API. Mark the cloud keys
+   (for example `AWS_ACCESS_KEY_ID`): replace them with OIDC (above) instead of copying them.
 2. **Move jobs without secrets first.** Change `runs-on: ubuntu-latest` to the pool's line.
    Nothing else changes.
 3. **Copy the secrets with the export workflow.** A one-time workflow on a temporary branch reads
@@ -160,6 +207,7 @@ Their secrets stay on GitHub.
 | `${{ env.NAME }}` is empty | Value not saved for this repository, a branch rule does not match, a `pull_request` or tag run with a branch-ruled value, or a fork pull request | List the values with `?repo=owner/name`; check the branch rules and the event |
 | `${{ secrets.NAME }}` is empty on Quant runners | The secret moved to Quant, or was never on GitHub | Use `${{ env.NAME }}` |
 | Job fails before its first step with a values error | Quant could not confirm the job | Re-run the job; if it repeats, contact support with the run URL |
+| `Not authorized to perform sts:AssumeRoleWithWebIdentity` | The role's trusted `sub` does not match the token: a different subject format, a different environment name, or the job has no `environment:` | Read the prefix with `gh api repos/<owner>/<repo>/actions/oidc/customization/sub`; match the exact `<prefix>:environment:<name>` |
 | PUT returns 400 with a reserved name | Name is reserved or has a reserved prefix | Rename it, and change the workflow to match |
 | A secret value has lost its last newline | `gh secret set` removes a trailing newline from stdin, so GitHub held the trimmed value | Expected; the export copies what GitHub holds |
 
