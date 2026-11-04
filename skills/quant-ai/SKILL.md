@@ -158,7 +158,8 @@ can be agent models.
   server's tools only when you attach the server to that agent: on the agent page, or with
   `"mcpServers": [{"server": "github"}]`. Add `"tools": ["search_issues"]` to allow only some of
   the server's tools (`[]` allows none). On update, `"mcpServers": []` removes every attachment.
-  An organisation agent uses its attached servers in dashboard chat, in agent chat and in QuantCode.
+  The agent uses its attached servers in dashboard chat, in agent chat and in QuantCode. To attach
+  servers to a platform agent, set `mcpServers` on its overlay (Customise).
 - Pre-built platform agents can be adjusted per organisation with an overlay
   (`PUT /agents/{agentId}/overlay`: `modelId`, `temperature`, `maxTokens`, `longContext`,
   `reasoningEffort`, `additionalTools`, `disabledTools`, `additionalSkills`, `disabledSkills`,
