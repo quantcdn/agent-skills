@@ -150,11 +150,24 @@ can be agent models.
 - Dashboard: AI Agents, Create Agent (five-step wizard); test in the chat panel on the agent page.
 - API: `POST /agents` with `name`, `description`, `systemPrompt`, `modelId` (required), and
   `allowedTools`, `allowedCollections`, `assignedSkills`, `guardrailPreset`
-  (`official`, `official-sensitive`, `protected`), `filterPolicies`, `group`.
+  (`official`, `official-sensitive`, `protected`), `filterPolicies`, `mcpServers`, `group`.
+  `PUT /agents/{agentId}` changes only the fields you send.
 - Chat: `POST /agents/{agentId}/chat` with `message`, optional `sessionId`, `userId`, `stream`, `async`.
   Without `sessionId` a new session is created. The agent runs its tools itself.
+- MCP servers: register a remote MCP server in AI Services, MCP servers. An agent gets the
+  server's tools only when you attach the server to that agent: on the agent page, or with
+  `"mcpServers": [{"server": "github"}]`. Add `"tools": ["search_issues"]` to allow only some of
+  the server's tools (`[]` allows none). On update, `"mcpServers": []` removes every attachment.
+  An organisation agent uses its attached servers in dashboard chat, in agent chat and in QuantCode.
 - Pre-built platform agents can be adjusted per organisation with an overlay
-  (`PUT /agents/{agentId}/overlay`: model, tools, skills, `systemPromptAppend`); PUT replaces the whole overlay.
+  (`PUT /agents/{agentId}/overlay`: `modelId`, `temperature`, `maxTokens`, `longContext`,
+  `reasoningEffort`, `additionalTools`, `disabledTools`, `additionalSkills`, `disabledSkills`,
+  `allowedCollections`, `systemPromptAppend`, `guardrailPreset`, `filterPolicies`, `mcpServers`).
+  In the dashboard, select Customise on the platform agent.
+
+**Warning:** the overlay PUT replaces the whole overlay. A field that you leave out is deleted.
+To change one setting, `GET /agents/{agentId}/overlay`, change the field, and send every field
+back with the `version` from the GET (409 if someone else saved first).
 
 ## Skills
 
@@ -299,6 +312,8 @@ guardrail presets follow the Australian PSPF classifications (OFFICIAL, OFFICIAL
 | Stream stops part way, HTTP 200 | An `event: error` arrived in the stream, or the connection closed before `done` | Handle `error` events; treat a stream with no `done` as failed; use `async: true` for long runs |
 | `finish_reason` says `stop` but text is cut (`/oai/v1` stream) | Streams report `stop` on max-token truncation | Raise `max_tokens`; check usage |
 | Agent ignores a skill or tool | Not assigned, or the skill's required tool is missing | Assign both; test in the agent chat panel |
+| Agent does not use a registered MCP server | The server is registered but not attached to the agent, or it is disabled | Attach it on the agent page (`mcpServers`); enable the server |
+| A platform agent setting disappears after a change | An overlay PUT without that field; the PUT replaces the whole overlay | GET the overlay, then send every field back. In Terraform, see [Terraform](references/terraform.md) |
 | Agent tool calls fail after a change | Tool deleted or removed from the agent | Re-assign or redeploy the tool |
 | Tool result `pending_approval`; the tool does not run | The organisation requires approval for that tool | Decide on AI Services, Approvals; the result arrives on the next turn ([tool approvals](references/tool-approvals.md)) |
 | Webhook 401 | Wrong mode, secret rotated, body changed after signing | Reveal the secret; sign the exact raw body; match the auth mode |
@@ -311,4 +326,4 @@ guardrail presets follow the Australian PSPF classifications (OFFICIAL, OFFICIAL
   skills, vector database, workflows, webhook secrets, governance, filter policies, Slack bots, MCP servers)
 - Related skills: `quant-platform`, `quant-search`, `quant-iac`, `quant-edge-functions-and-kv`
 
-<!-- checked against tf:quantcdn/quant 5.15.2 -->
+<!-- checked against tf:quantcdn/quant 5.17.0 -->

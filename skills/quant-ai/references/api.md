@@ -19,7 +19,7 @@ https://docs.quantcdn.io/ai/api-reference/.
 | Built-in tools | `GET /tools`, `GET /tools/names`, `GET /tools/executions`, `GET /tools/executions/{id}` | |
 | Custom tools | `GET`/`POST /custom-tools`, `GET`/`DELETE /custom-tools/{toolName}` | POST with an existing name updates |
 | Agents | `GET`/`POST /agents`, `GET`/`PUT`/`DELETE /agents/{id}`, `POST /agents/{id}/chat` | |
-| Agent overlays | `GET`/`PUT`/`DELETE /agents/{id}/overlay` | Platform agents only; PUT replaces; `version` for compare-and-swap (409 on conflict) |
+| Agent overlays | `GET`/`PUT`/`DELETE /agents/{id}/overlay` | Platform agents only; PUT replaces the whole overlay, so send every field; `version` for compare-and-swap (409 on conflict) |
 | Skills | `GET`/`POST /skills`, `GET`/`PUT`/`DELETE /skills/{id}`, `POST /skills/import`, `POST /skills/{id}/sync` | |
 | Skill collections | `GET /skills/collections`, `POST /skills/import-collection`, `POST /skills/collections/{ns}/sync`, `DELETE /skills/collections/{ns}` | Delete removes all skills in the namespace |
 | Vector DB | `GET`/`POST /vector-db/collections`, `GET`/`DELETE /vector-db/collections/{id}` | 409 if the name exists |
