@@ -89,8 +89,11 @@ Notes:
   documents again.
 - `quant_ai_agent_overlay` changes a platform agent for your organisation (`agent_id`,
   `system_prompt_append`, `additional_tools`, `disabled_tools`, `model_id`, and so on).
-- **Warning:** each apply of `quant_ai_agent_overlay` replaces the whole overlay. The resource
-  has no attributes for filter policies, long context, reasoning effort or MCP server
-  attachments, so an apply deletes those settings if someone set them in the dashboard or the
-  API. Do not manage an overlay in Terraform if it needs those settings.
+- `quant_ai_agent_overlay` also takes `filter_policies`, `long_context`, `reasoning_effort` and
+  `mcp_servers`; `quant_ai_agent` takes `mcp_servers` (`server`, optional `tools`).
+- From provider 5.18.0, an apply reads the stored overlay and keeps every value your
+  configuration does not set. So removing an argument does not clear it: set `[]` or `""`.
+- **Warning:** before 5.18.0, each apply of `quant_ai_agent_overlay` deleted every overlay
+  setting the configuration did not set, including filter policies and MCP attachments made in
+  the dashboard. Pin `>= 5.18.0` if anyone changes the overlay outside Terraform.
 - Workflows, triggers, sessions, filter policies and MCP servers stay in the dashboard or API.
