@@ -1,7 +1,7 @@
 # Quant AI with Terraform
 
 Provider setup, versions, Pulumi names and import IDs are in `quant-iac`. This file shows the AI
-resources together. Checked against `quantcdn/quant` v5.15.2 (validated with `terraform validate`).
+resources together. Checked against `quantcdn/quant` v5.19.1 (validated with `terraform validate`).
 
 ## Resources
 
@@ -69,6 +69,18 @@ resource "quant_ai_agent" "support" {
   allowed_tools       = [quant_ai_custom_tool.lookup_order.name]
   allowed_collections = [quant_ai_vector_collection.faq.collection_id]
   guardrail_preset    = "official"
+  filter_policies     = [var.pii_filter_policy_id]    # an existing filter policy ID
+  mcp_servers = [
+    { server = "github", tools = ["search_issues"] },  # only these tools
+    { server = "docs" },                                # every tool the server allows
+  ]
+}
+
+resource "quant_ai_agent_overlay" "platform" {
+  agent_id             = var.platform_agent_id  # from GET /agents: an agent with isGlobal true
+  system_prompt_append = "Follow the team's Go style guide."
+  long_context         = true
+  mcp_servers          = [{ server = "github" }]
 }
 
 resource "quant_ai_governance" "org" {
@@ -88,9 +100,19 @@ Notes:
 - Changing `embedding_model` means a new collection. Plan the replacement and upload the
   documents again.
 - `quant_ai_agent_overlay` changes a platform agent for your organisation (`agent_id`,
-  `system_prompt_append`, `additional_tools`, `disabled_tools`, `model_id`, and so on).
-- **Warning:** each apply of `quant_ai_agent_overlay` replaces the whole overlay. The resource
-  has no attributes for filter policies, long context, reasoning effort or MCP server
-  attachments, so an apply deletes those settings if someone set them in the dashboard or the
-  API. Do not manage an overlay in Terraform if it needs those settings.
-- Workflows, triggers, sessions, filter policies and MCP servers stay in the dashboard or API.
+  `system_prompt_append`, `additional_tools`, `disabled_tools`, `model_id`, `long_context`,
+  `reasoning_effort`, `filter_policies`, `mcp_servers`, and so on).
+- An overlay apply changes only the attributes in your configuration. The provider reads the
+  stored overlay first and sends back every other field, so settings made in the dashboard or
+  the API stay. Destroy deletes the whole overlay.
+- **Warning:** provider versions before v5.18.0 replace the whole overlay on each apply, and
+  delete the settings that the configuration does not set. Use v5.18.0 or later.
+- On `quant_ai_agent` and `quant_ai_agent_overlay`, an attribute that you remove from the
+  configuration keeps its stored value. To clear a list, set it to `[]`. `mcp_servers = []`
+  removes every attachment.
+- In `mcp_servers`, `server` is a registered server name. Leave out `tools` to allow every tool
+  the server allows; `tools = []` allows none.
+- If someone changes `mcp_servers` or `filter_policies` in the dashboard, the next plan shows
+  the change as drift (v5.19.1 or later for `quant_ai_agent`).
+- Workflows, triggers and sessions stay in the dashboard or API. Register MCP servers and
+  create filter policies there too; Terraform attaches them by name or ID.
