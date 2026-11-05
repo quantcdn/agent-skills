@@ -14,7 +14,7 @@ This skill covers using them as a customer. For the platform overview load `quan
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Identify the platform by the dashboard URL only; ask the customer if you do not know it. Features
 are the same; QuantGov offers Australian-resident models only. Checked 2026-10 against the public
-docs, the public API specification (4.25.0) and Terraform `quantcdn/quant` v5.15.2.
+docs, the public API specification (4.25.0) and Terraform `quantcdn/quant` v5.19.1.
 
 | | QuantCDN | QuantGov |
 |---|---|---|
@@ -272,7 +272,8 @@ QuantCode, **Escape** means "decide later": no decision is sent and the proposal
 Resources: `quant_ai_agent`, `quant_ai_agent_overlay`, `quant_ai_custom_tool`, `quant_ai_skill`,
 `quant_ai_vector_collection`, `quant_ai_vector_document`, `quant_ai_governance` (one per
 organisation). Required fields and an example: [references/terraform.md](references/terraform.md).
-Workflows, triggers, sessions, filter policies and MCP servers are not Terraform resources.
+Workflows, triggers, sessions, filter policies and MCP servers are not Terraform resources. An
+agent or overlay attaches existing filter policies and MCP servers (`filter_policies`, `mcp_servers`).
 Provider setup (`base_url` is the bare dashboard host, `https://dash.quantgov.cloud` on gov), Pulumi
 names and import IDs: `quant-iac`.
 
@@ -314,7 +315,7 @@ guardrail presets follow the Australian PSPF classifications (OFFICIAL, OFFICIAL
 | `finish_reason` says `stop` but text is cut (`/oai/v1` stream) | Streams report `stop` on max-token truncation | Raise `max_tokens`; check usage |
 | Agent ignores a skill or tool | Not assigned, or the skill's required tool is missing | Assign both; test in the agent chat panel |
 | Agent does not use a registered MCP server | The server is registered but not attached to the agent, or it is disabled | Attach it on the agent page (`mcpServers`); enable the server |
-| A platform agent setting disappears after a change | An overlay PUT without that field; the PUT replaces the whole overlay | GET the overlay, then send every field back. In Terraform, see [Terraform](references/terraform.md) |
+| A platform agent setting disappears after a change | An overlay PUT without that field; the PUT replaces the whole overlay | GET the overlay, then send every field back. Terraform v5.18.0 and later keep the other fields ([Terraform](references/terraform.md)) |
 | Agent tool calls fail after a change | Tool deleted or removed from the agent | Re-assign or redeploy the tool |
 | Tool result `pending_approval`; the tool does not run | The organisation requires approval for that tool | Decide on AI Services, Approvals; the result arrives on the next turn ([tool approvals](references/tool-approvals.md)) |
 | Webhook 401 | Wrong mode, secret rotated, body changed after signing | Reveal the secret; sign the exact raw body; match the auth mode |
@@ -327,4 +328,4 @@ guardrail presets follow the Australian PSPF classifications (OFFICIAL, OFFICIAL
   skills, vector database, workflows, webhook secrets, governance, filter policies, Slack bots, MCP servers)
 - Related skills: `quant-platform`, `quant-search`, `quant-iac`, `quant-edge-functions-and-kv`
 
-<!-- checked against tf:quantcdn/quant 5.17.0 -->
+<!-- checked against tf:quantcdn/quant 5.19.1 -->
