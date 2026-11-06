@@ -189,6 +189,15 @@ class contentFilter extends TransformStream {
   `responseHeaders.get('content-type')` in the constructor and pass chunks through unchanged.
 - The filter rule continues to later rules. If several filter rules match, only the **last**
   one applies. One filter that does two jobs is the only way to combine them.
+- **Warning: never store request data on `globalThis` in a filter.** A value written to the
+  global object (or a change to a built-in such as `Array.prototype`) can still be there when
+  the same filter handles a later request in the same project, from a different visitor. It is
+  never visible to other projects or to other filters, edge functions or auth functions, and a
+  new filter version starts clean. It can be discarded at any time, so it is not a cache.
+  Declared variables (`const`, `let`, `function`) and properties of the filter instance are new
+  for every request, and filters run in strict mode, so an undeclared assignment throws.
+  Pass values between helpers as arguments or keep them on the instance. Edge and auth
+  functions should follow the same rule: Quant does not promise a clean global scope.
 
 ### Rewriting a whole document
 
