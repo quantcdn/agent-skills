@@ -13,8 +13,8 @@ rules that run functions, see `quant-rules-and-routing`. For the `quant function
 ## Applies to
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
-Functions and KV behave the same on both. Checked 2026-10-24 against `@quantcdn/quant-cli` 7.0.2,
-`quantcdn/deploy-action` v7.1.1, the edge runtime (including the `kvStore` declarations) and the
+Functions and KV behave the same on both. Checked 2026-11-07 against `@quantcdn/quant-cli` 7.0.2,
+`quantcdn/deploy-action` v7.1.2, the edge runtime (including the `kvStore` declarations) and the
 public docs.
 
 | | Public | Gov |
@@ -295,7 +295,7 @@ GitHub Actions (gov values shown; public: `https://api.quantcdn.io/v1` and
 `https://dashboard.quantcdn.io/api/v2`):
 
 ```yaml
-- uses: quantcdn/deploy-action@d6d776177f9fbdf781a7d09c071185a9e509fcc3 # v7.1.1
+- uses: quantcdn/deploy-action@07141321c35c2073abcd3973e2aed1c95f401259 # v7.1.2
   with:
     customer: ${{ vars.QUANT_CUSTOMER }}
     project: ${{ vars.QUANT_PROJECT }}
@@ -438,4 +438,4 @@ outcome with it. See [references/kv-ledgers.md](references/kv-ledgers.md).
   `quant-templates`, `quant-iac`
 
 <!-- checked against npm:@quantcdn/quant-cli 7.0.2 -->
-<!-- checked against gh:quantcdn/deploy-action 7.1.1 -->
+<!-- checked against gh:quantcdn/deploy-action 7.1.2 -->

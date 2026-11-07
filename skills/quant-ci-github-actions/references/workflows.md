@@ -53,7 +53,7 @@ jobs:
           restore-keys: quant-revision-${{ github.ref }}-
 
       - name: Deploy
-        uses: quantcdn/deploy-action@d6d776177f9fbdf781a7d09c071185a9e509fcc3 # v7.1.1
+        uses: quantcdn/deploy-action@07141321c35c2073abcd3973e2aed1c95f401259 # v7.1.2
         with:
           customer: ${{ vars.QUANT_CUSTOMER }}
           project: ${{ vars.QUANT_PROJECT }}
@@ -354,7 +354,7 @@ jobs:
 
 ```yaml
       - name: Deploy site, edge functions and rules
-        uses: quantcdn/deploy-action@d6d776177f9fbdf781a7d09c071185a9e509fcc3 # v7.1.1
+        uses: quantcdn/deploy-action@07141321c35c2073abcd3973e2aed1c95f401259 # v7.1.2
         with:
           customer: ${{ vars.QUANT_CUSTOMER }}
           project: ${{ vars.QUANT_PROJECT }}
@@ -452,7 +452,7 @@ deploy-static:
   stage: deploy
   needs: [build]
   image:
-    name: quantcdn/cli:7.2.0
+    name: quantcdn/cli:7.4.0
     entrypoint: [""]                    # the image's entrypoint is quant; GitLab needs a shell
   variables:
     QUANT_ENDPOINT: https://api.quantgov.cloud/v1   # public: https://api.quantcdn.io/v1

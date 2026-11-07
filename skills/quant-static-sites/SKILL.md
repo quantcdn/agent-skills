@@ -13,8 +13,8 @@ For the platform overview and the public/gov split, load `quant-platform` first.
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 The features are the same. The only difference you configure is the content API endpoint.
-Checked against `@quantcdn/quant-cli` 7.0.2, `quantcdn/deploy-action` v7.1.1 (runs CLI 7.2.0) and
-`quantcdn/purge-action` v7.1.1 (runs CLI 7.2.0), 2026-10-31.
+Checked against `@quantcdn/quant-cli` 7.0.2, `quantcdn/deploy-action` v7.1.2 (runs CLI 7.4.0) and
+`quantcdn/purge-action` v7.1.1 (runs CLI 7.2.0), 2026-11-07.
 
 | | Public | Gov |
 |---|---|---|
@@ -62,7 +62,7 @@ comment; look up the SHA of the latest release before you change a pin (see `qua
     key: quant-revision-${{ github.ref }}-${{ github.run_id }}
     restore-keys: quant-revision-${{ github.ref }}-
 - run: npm ci && npm run build
-- uses: quantcdn/deploy-action@d6d776177f9fbdf781a7d09c071185a9e509fcc3 # v7.1.1
+- uses: quantcdn/deploy-action@07141321c35c2073abcd3973e2aed1c95f401259 # v7.1.2
   with:
     customer: ${{ secrets.QUANT_CUSTOMER }}
     project: ${{ secrets.QUANT_PROJECT }}
@@ -273,5 +273,5 @@ A paginated CSV export is in [references/deploy-behaviour.md](references/deploy-
   `quant-templates`, `quant-cms-integrations`, `quant-edge-functions-and-kv`, `quant-rules-and-routing`
 
 <!-- checked against npm:@quantcdn/quant-cli 7.0.2 -->
-<!-- checked against gh:quantcdn/deploy-action 7.1.1 -->
+<!-- checked against gh:quantcdn/deploy-action 7.1.2 -->
 <!-- checked against gh:quantcdn/purge-action 7.1.1 -->
