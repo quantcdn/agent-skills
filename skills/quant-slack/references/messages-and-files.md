@@ -33,6 +33,17 @@ Broadcast control strings are rendered literally. Real person mentions use `<@SL
 use them only when appropriate to the authorised task. Do not rely on a plain `@name` to notify.
 A message posted via this API does not automatically trigger a bot reply.
 
+Links: write `<https://example.com/pull/12|example/repo#12>` for a link with a label, or a bare
+`https://` URL. Only `https` links become links; `http:`, `mailto:` and other schemes, channel
+links and user groups are shown as text. Punctuation directly after a bare URL is not part of it.
+For a list of links, put one per line with a short label, for example:
+
+```text
+Open PRs:
+- <https://github.com/example/app/pull/12|example/app#12> (checks passing)
+- <https://github.com/example/site/pull/4|example/site#4> (checks pending)
+```
+
 ## Upload an image
 
 `POST /slack-bots/{botId}/files` with the same authentication and a stable idempotency key:
@@ -48,6 +59,8 @@ A message posted via this API does not automatically trigger a bot reply.
   "text": "Here is the current mobile layout."
 }
 ```
+
+The caption follows the same rules as message text, including links.
 
 `channel` and `content` are required; omit `threadTs` for a new root post. The image must be PNG,
 JPEG, GIF or WebP, at most 4 MiB decoded. `content` is standard base64 without whitespace or a
