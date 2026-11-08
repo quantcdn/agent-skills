@@ -44,6 +44,28 @@ Open PRs:
 - <https://github.com/example/site/pull/4|example/site#4> (checks pending)
 ```
 
+## Rich messages with Markdown
+
+Add `"format": "markdown"` to post standard Markdown: headings, bold and italic, bullet and
+numbered lists, task lists, tables, block quotes, code blocks with a language, and
+`[text](https://…)` links. Without `format` (or with `"mrkdwn"`) the text is Slack mrkdwn, as above.
+
+```json
+{
+  "channel": "CHANNEL_FROM_DISCOVERY",
+  "format": "markdown",
+  "text": "## Nightly report\n\n| Check | Result |\n|---|---|\n| Image scan | 0 high or critical |\n| Open PRs | [example/app#12](https://github.com/example/app/pull/12) |\n\nNext: merge after review."
+}
+```
+
+- Use it for anything with structure: a status table, a list of PRs or findings, steps.
+- The same safety rules apply: `<@SLACK_USER_ID>` mentions work (at most 10), only `https`
+  links become links, and broadcasts (`@here`, `@channel`, `<!channel>`) are shown as text.
+- The rendered text can be at most 12,000 characters; the request `text` is still 1–8000.
+- Headings all render at the same size in Slack. Images in Markdown become links, not pictures;
+  use the image upload below for a picture.
+- Put a mention on its own line before a heading or table, not on the same line.
+
 ## Upload an image
 
 `POST /slack-bots/{botId}/files` with the same authentication and a stable idempotency key:
