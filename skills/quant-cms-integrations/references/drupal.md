@@ -144,10 +144,11 @@ reCAPTCHA v2, and submission tokens such as `[webform_submission:serial]`.
 | Action | Result |
 |---|---|
 | Create a search page (2.3.0) | Saves an enabled search page at a free address (`search`, `site-search`, ...), registers its facets, publishes it, and can place the search box block. Adds content types to the index settings when the page needs them (then re-index) |
-| Create from a View (2.3.0) | Proposes the page from a View page: fixed content type filter, exposed content type, language and taxonomy filters as facets, a fixed term filter as a filter on term names, keyword filters as the search box, the pager. Lists sorts, contextual filters and other fields as not converted |
+| Create from a View (2.3.0) | Proposes the page from a View page: fixed content type filter, exposed content type, language and taxonomy filters as facets, a fixed term filter as a filter on term names (in the engine's syntax), keyword filters as the search box, the pager. Lists sorts, contextual filters and other fields as not converted |
 | Add a search page (all settings) | The full form: manual filters, display options, facet order |
 
 Index keys: `content_type`, `content_type_{langcode}`, `language_{langcode}`, `lang_code` and
 `{vocabulary}_{langcode}` for terms. QuantGov projects use Typesense (`https://search.quantgov.cloud`),
-QuantCDN projects Algolia. Filters use the Algolia syntax (`content_type:"article"`); the module
-converts it for Typesense.
+QuantCDN projects Algolia. Manual filters are sent as written, so they use the engine's syntax:
+Algolia `topic_en:'Water quality'`, Typesense ``topic_en:=`Water quality` ``. A page created from a
+View writes its fixed term filter in the project's syntax.
