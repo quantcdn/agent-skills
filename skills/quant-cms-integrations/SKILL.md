@@ -111,7 +111,7 @@ static site, stores them and sends email and Slack notifications.
    takes the form's submissions is published with its Quant Forms settings: the Webform's own page,
    from every page that embeds it (a footer newsletter included).
 3. The first enabled email handler becomes the Quant email. Set the Slack webhook and the AI spam
-   check on the Forms page. Per form: Settings > Third party settings > Quant Forms.
+   check on the Forms page. Per form: Settings > General > Third party settings > Quant Forms.
 4. Multi-page Webforms work: every page is in the static page and a script runs the steps, the
    review step and one submit. Conditions (`#states`), composites and file fields work.
 5. Not on the static site: AJAX submit, drafts, submission limits, handlers other than email,
