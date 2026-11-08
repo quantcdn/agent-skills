@@ -106,12 +106,17 @@ Details, every field and the drush commands: [references/drupal.md](references/d
 static site, stores them and sends email and Slack notifications.
 
 1. Enable `quant_webform`. Turn off "Use Ajax" on each Webform (an AJAX form posts to Drupal).
-2. Save the Webform, or click **Register all forms** at `Configuration > Quant > Forms`
-   (`/admin/config/development/quant/forms`), or run `drush quant:webform-register`. The page that
-   takes the form's submissions is published with its Quant Forms settings: the Webform's own page,
-   from every page that embeds it (a footer newsletter included).
-3. The first enabled email handler becomes the Quant email. Set the Slack webhook and the AI spam
-   check on the Forms page. Per form: Settings > General > Third party settings > Quant Forms.
+2. Opt the form in (off by default): tick "Take submissions through Quant Forms" in the form's
+   Quant Forms settings, or tick it at `Configuration > Quant > Forms` and click **Register the
+   ticked forms**, or run `drush quant:webform-register ID --opt-in`. The page that takes the
+   form's submissions is published with its Quant Forms settings: the Webform's own page, from
+   every page that embeds it (a footer newsletter included). A ticked form replaces the settings
+   made for that page in the dashboard, which then shows "Managed in Drupal" and is read-only;
+   copy dashboard settings into Drupal first. Unticked forms are never changed.
+3. Per form (Settings > General > Third party settings > Quant Forms): the email (from the first
+   email handler, set in Drupal, or none), Slack with a per-form webhook, honeypot, reCAPTCHA v2,
+   the AI spam check, refused countries and IPs, and what shows after a submit. Secrets stay out
+   of config. Site defaults (Slack webhook, spam check) are on the Forms page.
 4. Multi-page Webforms work: every page is in the static page and a script runs the steps, the
    review step and one submit. Conditions (`#states`), composites and file fields work.
 5. Not on the static site: AJAX submit, drafts, submission limits, handlers other than email,

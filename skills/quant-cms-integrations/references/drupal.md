@@ -91,7 +91,7 @@ enabled for push it adds a signed `quant-token` header; tokens are managed at `/
 | `quant:clear-queue` | `quant-queue-clear` | Removes every queue item |
 | `quant:tome:deploy` | | `quant_tome` submodule: deploy Tome static output |
 | `quant:auth-status` | | 2.3.0: platform, organisation, project, connection method, login expiry. Never prints a token |
-| `quant:webform-register [id]` | | 2.3.0, `quant_webform`: publishes the page of each Webform (or one) with its Quant Forms settings, and prints what is not supported |
+| `quant:webform-register [id] [--opt-in]` | | 2.3.0, `quant_webform`: publishes the page of each ticked Webform (or one; `--opt-in` ticks it first) with its Quant Forms settings, and prints what is not supported |
 
 `quant:run-queue` finds drush through `DRUSH_PATH`, `PATH`, or `vendor/bin/drush`. Set `DRUSH_PATH`
 if it reports "Unable to find a valid drush binary". For a site with many threads keep the thread count
@@ -112,6 +112,12 @@ The queue worker is `quant_seed_worker`; it also runs on core cron (60 seconds p
 | `quant_webform` | `drupal/webform` | Quant Forms for Webform. From 2.3.0 it registers each form on publish (below) |
 
 ## Quant Forms with Webform (2.3.0)
+
+Opt-in per Webform (third-party setting `enabled`, off by default; the update hook changes
+nothing). For a ticked form Drupal is the source of truth: the pushed config carries
+`notification_settings.managed_by: drupal`, and the dashboard form editor shows it read-only.
+The module turns Quant Forms off only on pages it registered itself (key-value
+`quant_webform.registered`).
 
 A Webform's settings go to Quant inline with the push of the page that takes its submissions. That
 page is the Webform's own page, also when the form is embedded elsewhere (a block, a footer, a
