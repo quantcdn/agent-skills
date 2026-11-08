@@ -69,6 +69,10 @@ and deploys. Ask for the dashboard URL before you tell a customer which wizard t
   makes the live site change by itself (see Preview and publish).
 - Components and layouts are `.astro` files. Edit them in the **code editor** or **file browser**. The
   template's `quant.studio.json` lists the components that Studio offers when you insert one in MDX.
+- A page that lists a collection (for example Team, News or Publications) is not a collection entry. It
+  is an `.astro` file under `src/pages/`, such as `src/pages/team/index.astro` or
+  `src/pages/publications/[...page].astro`. To change its title, intro or layout, open that file in the
+  **file browser** or **code editor**. The entries that it lists stay in **Collections**.
 - Other screens: media browser, schema editor (add collections and fields), Settings (production branch,
   languages, brand and tone for the AI assistant), Forms and Search panels (enable them on the project
   first), and an edge function editor (files in `quant/edge-functions/`; see `quant-edge-functions-and-kv`).
