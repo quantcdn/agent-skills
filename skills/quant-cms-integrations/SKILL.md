@@ -59,8 +59,10 @@ Details, every field and the drush commands: [references/drupal.md](references/d
    - **Log in to Quant** (2.3.0 and later). The editor approves the site in the Quant dashboard and
      chooses the project. The site can then reach only that project. The module keeps the tokens
      outside config (a config export never holds them) and refreshes them on cron. **Change
-     project** starts a new login. **Log out of Quant** removes the tokens from the site. A
-     multi-domain site (Domain module, one project per domain) and a site in a subdirectory use the
+     project** starts a new login. **Log out of Quant** removes the tokens from the site and, from
+     2.3.0, ends the login in the dashboard. If Quant refuses to renew the login, the API settings
+     page and the status report say "The Quant login needs renewing"; click **Log in to Quant
+     again**. Content still publishes until then. A multi-domain site (Domain module, one project per domain) and a site in a subdirectory use the
      token fields instead.
    - **Connect with a project token** (CI, existing sites, multi-domain): **API Organization**,
      **API Project** (the project "API name", which can differ from the display name) and **API
@@ -97,7 +99,8 @@ Details, every field and the drush commands: [references/drupal.md](references/d
 |---|---|
 | Save a published node, term, or redirect | Pushed at the end of the request (shutdown), if "Track content change" and that entity type are on |
 | Save a node whose default revision is unpublished | The page is unpublished in Quant |
-| Delete an entity | The page is unpublished in Quant (before the alias is removed) |
+| Change the alias of a published node or term (for example Pathauto after a new title) | The old address is unpublished. From 2.3.0 it also gets a 301 to the new address, unless the Redirect module is on (its redirects are pushed instead) |
+| Delete an entity | The page is unpublished in Quant (before the alias is removed). From 2.3.0 its `/node/N` or `/taxonomy/term/N` redirect is unpublished too |
 | Draft revisions | Not pushed while "Disable content drafts" is on (the default) |
 | Cache tags (`quant_purger` with the Purge module) | Pages that share a changed tag are queued; the queue runs on the next cron |
 | `quant_cron` | Pushes the entities and routes you select each time cron runs. **Command-line cron only**; web cron does nothing. Settings: `/admin/config/development/quant/cron` |
@@ -128,7 +131,8 @@ static site, stores them and sends email and Slack notifications.
 
 - **Create a search page** (2.3.0 and later): one screen with the address (`search`, or the first
   free one), the content types, facets proposed from their vocabularies, and an optional search box
-  on every page. Save publishes the page.
+  on every page (offered once per theme). Save publishes the page. The static pages show a new
+  search box only after they are published again (a seed).
 - **Create from a View** (2.3.0 and later): choose a View page. Fixed content type filters, exposed
   taxonomy, content type and language filters, keyword filters and the pager are proposed; other
   filters, sorts and contextual filters are listed as not converted. Review, then save.

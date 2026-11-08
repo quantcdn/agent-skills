@@ -154,7 +154,8 @@ reCAPTCHA v2, and submission tokens such as `[webform_submission:serial]`.
 | Add a search page (all settings) | The full form: manual filters, display options, facet order |
 
 Index keys: `content_type`, `content_type_{langcode}`, `language_{langcode}`, `lang_code` and
-`{vocabulary}_{langcode}` for terms. QuantGov projects use Typesense (`https://search.quantgov.cloud`),
-QuantCDN projects Algolia. Manual filters are sent as written, so they use the engine's syntax:
+`{vocabulary}_{langcode}` for terms. QuantGov projects use Typesense (`https://search.quantgov.cloud`;
+from 2.3.0 a site whose `$settings['quant_api_dashboard_url']` is `https://dash.<env>.quantgov.cloud`
+uses `https://search.<env>.quantgov.cloud`), QuantCDN projects Algolia. Manual filters are sent as written, so they use the engine's syntax:
 Algolia `topic_en:'Water quality'`, Typesense ``topic_en:=`Water quality` ``. A page created from a
 View writes its fixed term filter in the project's syntax.
