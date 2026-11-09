@@ -1,6 +1,6 @@
 ---
 name: quant-cms-integrations
-description: Use when connecting Drupal or WordPress to Quant or running either CMS on Quant Cloud, on QuantCDN or QuantGov - installing and configuring the Quant Drupal module (`drupal/quantcdn`, 1.x for Drupal 10, 2.x for Drupal 11) or the QuantCDN WordPress plugin, the connection fields (API endpoint per platform, organisation, project, project token, webserver URL and host header), the first full push (Drupal seed queue and `drush quant:run-queue`, WordPress `wp quant process_queue`), what is pushed on save, unpublish and delete, cron, purge and search submodules, choosing between a static push and running the CMS on Quant Cloud (`app-drupal`, `app-drupal-cms`, `app-wordpress` - database variables, SMTP, uploads on a volume, cron, trusted hosts, `WP_HOME`), editor access after go-live, and the go-live checklist. Also use when a push says "Unable to connect to local webserver", Drupal says "The provided host name is not valid for this server", uploads vanish after a redeploy, or `quant deploy` unpublished CMS pages.
+description: Use when connecting Drupal or WordPress to Quant or running either CMS on Quant Cloud, on QuantCDN or QuantGov - installing and setting up the Quant Drupal module (`drupal/quantcdn`, 1.x for Drupal 10, 2.x for Drupal 11) or the QuantCDN WordPress plugin, the connection ("Log in to Quant" or endpoint, organisation, project and token; webserver URL, host header), Quant Forms for Webform, the first full push (Drupal seed queue and `drush quant:run-queue`, WordPress `wp quant process_queue`), what is pushed on save, unpublish and delete, cron, purge, search pages and submodules, choosing a static push or the CMS on Quant Cloud (`app-drupal`, `app-drupal-cms`, `app-wordpress` - database variables, SMTP, uploads volume, cron, trusted hosts, `WP_HOME`), editor access after go-live, and the go-live checklist. Also use when a push says "Unable to connect to local webserver", Drupal says "The provided host name is not valid for this server", uploads vanish on redeploy, or `quant deploy` unpublished CMS pages.
 ---
 
 # Drupal and WordPress with Quant
@@ -19,7 +19,8 @@ For the platform overview and the public/gov split, load `quant-platform` first.
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Identify the platform by the dashboard URL only; ask the customer if you do not know it. Checked
 2026-10 against the Drupal module 1.7.0 and 2.0.0, the WordPress plugin 1.6.0 (wordpress.org), and
-the `app-drupal`, `app-drupal-cms` and `app-wordpress` templates.
+the `app-drupal`, `app-drupal-cms` and `app-wordpress` templates. "Log in to Quant", Quant Forms
+registration and "Create a search page" need Drupal module 2.3.0 or later (Drupal 11).
 
 | | QuantCDN (public) | QuantGov |
 |---|---|---|
@@ -53,15 +54,26 @@ Details, every field and the drush commands: [references/drupal.md](references/d
 1. **Install.** `composer require drupal/quantcdn`, then `drush en quant` (this also enables
    `quant_api`). Release line: **1.x for Drupal 10** (1.7.0), **2.x for Drupal 11** (2.0.0).
    Drupal 9 is not supported by current releases. Drupal 7 has its own `7.x-1.x` release.
-2. **Connect.** `Configuration > Quant > API` (`/admin/config/development/quant/api`):
-   - **API Endpoint**: shown but read-only. Change it with
-     `drush config:set quant_api.settings api_endpoint https://api.quantgov.cloud` or in `settings.php`.
-   - **API Organization**, **API Project** (the project "API name", which can differ from the
-     display name) and **API Token** (the project token from the Integrations page, not a dashboard
-     API token). Saving shows "Successfully connected to project ...", or an error.
+2. **Connect.** `Configuration > Quant > API` (`/admin/config/development/quant/api`). Choose the
+   **Platform** (QuantCDN or QuantGov), then one of:
+   - **Log in to Quant** (2.3.0 and later). The editor approves the site in the Quant dashboard and
+     chooses the project. The site can then reach only that project. The module keeps the tokens
+     outside config (a config export never holds them) and refreshes them on cron. **Change
+     project** starts a new login. **Log out of Quant** removes the tokens from the site and, from
+     2.3.0, ends the login in the dashboard. If Quant refuses to renew the login, the API settings
+     page and the status report say "The Quant login needs renewing"; click **Log in to Quant
+     again**. Content still publishes until then. A multi-domain site (Domain module, one project per domain) and a site in a subdirectory use the
+     token fields instead.
+   - **Connect with a project token** (CI, existing sites, multi-domain): **API Organization**,
+     **API Project** (the project "API name", which can differ from the display name) and **API
+     Token** (the project token from the Integrations page, not a dashboard API token). An empty
+     token field keeps the saved token. Saving shows "Connected to the Quant project ...", or an error.
    - Keep the token out of the database: in `settings.php` set
      `$config['quant_api.settings']['api_token'] = getenv('QUANT_TOKEN');` (also `api_account`,
-     `api_project`, `api_endpoint`). The form then shows an "overridden" warning.
+     `api_project`, `api_endpoint`). A `settings.php` token wins over both methods.
+   - Before 2.3.0 the endpoint field is read-only: set QuantGov with
+     `drush config:set quant_api.settings api_endpoint https://api.quantgov.cloud`.
+   - `drush quant:auth-status` shows the platform, the project and the method, never a token.
 3. **Local web server.** `Configuration > Quant` (`/admin/config/quant`): leave "Track content change"
    on, set **Webserver URL** to the server the module can reach itself on (`http://localhost`, plain
    http; a Docker service such as `http://nginx:8080`), and **HTTP Host header** to the public
@@ -87,10 +99,46 @@ Details, every field and the drush commands: [references/drupal.md](references/d
 |---|---|
 | Save a published node, term, or redirect | Pushed at the end of the request (shutdown), if "Track content change" and that entity type are on |
 | Save a node whose default revision is unpublished | The page is unpublished in Quant |
-| Delete an entity | The page is unpublished in Quant (before the alias is removed) |
+| Change the alias of a published node or term (for example Pathauto after a new title) | The old address is unpublished. From 2.3.0 it also gets a 301 to the new address, unless the Redirect module is on (its redirects are pushed instead) |
+| Delete an entity | The page is unpublished in Quant (before the alias is removed). From 2.3.0 its `/node/N` or `/taxonomy/term/N` redirect is unpublished too |
 | Draft revisions | Not pushed while "Disable content drafts" is on (the default) |
+| A push fails (Quant down, 5xx) | From 2.3.0 editors see a warning on their next page view and the status report lists the pages, until a later push of each page succeeds. Save again or run a seed |
 | Cache tags (`quant_purger` with the Purge module) | Pages that share a changed tag are queued; the queue runs on the next cron |
 | `quant_cron` | Pushes the entities and routes you select each time cron runs. **Command-line cron only**; web cron does nothing. Settings: `/admin/config/development/quant/cron` |
+
+**Forms (Webform, `quant_webform`, 2.3.0 and later).** Quant Forms takes the submissions on the
+static site, stores them and sends email and Slack notifications.
+
+1. Enable `quant_webform`. Turn off "Use Ajax" on each Webform (an AJAX form posts to Drupal).
+2. Opt the form in (off by default): tick "Take submissions through Quant Forms" in the form's
+   Quant Forms settings, or tick it at `Configuration > Quant > Forms` and click **Register the
+   ticked forms**, or run `drush quant:webform-register ID --opt-in`. The page that takes the
+   form's submissions is published with its Quant Forms settings: the Webform's own page, from
+   every page that embeds it (a footer newsletter included). A ticked form replaces the settings
+   made for that page in the dashboard, which then shows "Managed in Drupal" and is read-only;
+   copy dashboard settings into Drupal first. Unticked forms are never changed.
+3. Per form (Settings > General > Third party settings > Quant Forms): the email (from the first
+   email handler, set in Drupal, or none), Slack with a per-form webhook, honeypot, reCAPTCHA v2,
+   the AI spam check, refused countries and IPs, and what shows after a submit. Secrets stay out
+   of config. Site defaults (Slack webhook, spam check) are on the Forms page.
+4. Multi-page Webforms work: every page is in the static page and a script runs the steps, the
+   review step and one submit. Conditions (`#states`), composites and file fields work.
+5. Not on the static site: AJAX submit, drafts, submission limits, handlers other than email,
+   computed elements, CAPTCHA other than reCAPTCHA v2, and submission tokens such as
+   `[webform_submission:serial]` (set a static message per form). The full list is in the
+   `quant_webform` README.
+
+**Search pages (`quant_search`).** `Configuration > Quant > Search > Pages`:
+
+- **Create a search page** (2.3.0 and later): one screen with the address (`search`, or the first
+  free one), the content types, facets proposed from their vocabularies, and an optional search box
+  on every page (offered once per theme). Save publishes the page. The static pages show a new
+  search box only after they are published again (a seed).
+- **Create from a View** (2.3.0 and later): choose a View page. Fixed content type filters, exposed
+  taxonomy, content type and language filters, keyword filters and the pager are proposed; other
+  filters, sorts and contextual filters are listed as not converted. Review, then save.
+- Facet keys in the index are `{vocabulary}_{langcode}` (for example `topic_en`), `content_type`
+  and `language_{langcode}`. On QuantGov the page uses Typesense; on QuantCDN, Algolia.
 
 Submodules: `quant_api` (required), `quant_cron`, `quant_purger` (needs `drupal/purge`),
 `quant_search` (needs `drupal/token`), `quant_sitemap` (needs `simple_sitemap`), `quant_tome`,
