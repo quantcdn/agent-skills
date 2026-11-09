@@ -102,6 +102,7 @@ Details, every field and the drush commands: [references/drupal.md](references/d
 | Change the alias of a published node or term (for example Pathauto after a new title) | The old address is unpublished. From 2.3.0 it also gets a 301 to the new address, unless the Redirect module is on (its redirects are pushed instead) |
 | Delete an entity | The page is unpublished in Quant (before the alias is removed). From 2.3.0 its `/node/N` or `/taxonomy/term/N` redirect is unpublished too |
 | Draft revisions | Not pushed while "Disable content drafts" is on (the default) |
+| A push fails (Quant down, 5xx) | From 2.3.0 editors see a warning on their next page view and the status report lists the pages, until a later push of each page succeeds. Save again or run a seed |
 | Cache tags (`quant_purger` with the Purge module) | Pages that share a changed tag are queued; the queue runs on the next cron |
 | `quant_cron` | Pushes the entities and routes you select each time cron runs. **Command-line cron only**; web cron does nothing. Settings: `/admin/config/development/quant/cron` |
 
