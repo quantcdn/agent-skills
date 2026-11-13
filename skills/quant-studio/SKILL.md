@@ -14,9 +14,9 @@ without Studio. For the platform overview and the public/gov split, load `quant-
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Studio has the same features on both. Use the dashboard the customer logs in to. On QuantGov, the
-Studio AI assistant uses Australian-resident models only (see `quant-ai`). Checked 2026-10 against the
+Studio AI assistant uses Australian-resident models only (see `quant-ai`). Checked 2026-11-07 against the
 Studio documentation, the `ssg-astro-studio` and `ssg-astro-studio-civictheme` templates, `deploy-action`
-v7.0.1 and the in-browser build.
+v7.1.2 and the in-browser build.
 
 | | Public | Gov |
 |---|---|---|
@@ -227,4 +227,4 @@ delete), **Studio Read Only** (browse). The API sends `Authorization: Bearer <to
 - Related skills: `quant-templates`, `quant-static-sites`, `quant-rules-and-routing`,
   `quant-domains-cache-purge`, `quant-edge-functions-and-kv`, `quant-ai`, `quant-ci-github-actions`
 
-<!-- checked against gh:quantcdn/deploy-action 7.0.1 -->
+<!-- checked against gh:quantcdn/deploy-action 7.1.2 -->

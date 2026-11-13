@@ -1,12 +1,13 @@
 # Quant GitHub actions: versions, inputs and outputs
 
-Read from each action's `action.yml` and source at its latest release tag, 2026-10. "Default" is
+Read from each action's `action.yml` and source at its latest release tag (deploy-action
+2026-11-07, the others 2026-10). "Default" is
 the value the action uses when you leave the input out. Pin with the full SHA and keep the version
-in a comment: `uses: quantcdn/deploy-action@d6d776177f9fbdf781a7d09c071185a9e509fcc3 # v7.1.1
+in a comment: `uses: quantcdn/deploy-action@07141321c35c2073abcd3973e2aed1c95f401259 # v7.1.2
 
 | Action | Latest | Commit SHA | Major tag |
 |---|---|---|---|
-| `quantcdn/deploy-action` | v7.1.1 | `d6d776177f9fbdf781a7d09c071185a9e509fcc3` | `v7` |
+| `quantcdn/deploy-action` | v7.1.2 | `07141321c35c2073abcd3973e2aed1c95f401259` | `v7` |
 | `quantcdn/purge-action` | v7.1.1 | `540559574168b65a2310781a1656b06f45e01a71` | `v7` |
 | `quantcdn/search-action` | v2.1.1 | `908ed45742d8f9c80abe4155b93b0c9d13a90ba5` | `v2` |
 | `quantcdn/quant-cloud-init-action` | v4.0.2 | `ef36e08b9c21e6fc432f1673b49d7776657d3822` | `v4` |
@@ -34,9 +35,9 @@ then `gh api repos/quantcdn/<action>/commits/<tag> --jq .sha` for the commit SHA
 These call the content API with the **project token** (`QUANT_TOKEN`, from the project's
 Integrations page). On gov set `endpoint` on every step.
 
-### `quantcdn/deploy-action` v7.1.1
+### `quantcdn/deploy-action` v7.1.2
 
-Runs `quant` 7.2.0 (`quantcdn/cli:7.2.0`, pinned by digest). v7.0.1 ran 7.0.1.
+Runs `quant` 7.4.0 (`quantcdn/cli:7.4.0`, pinned by digest). v7.1.1 ran 7.2.0 and v7.0.1 ran 7.0.1.
 
 | Input | Required | Default | Notes |
 |---|---|---|---|

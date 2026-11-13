@@ -17,7 +17,7 @@ Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https:
 The templates are the same. Checked 2026-10 against the public, non-archived `quantcdn-templates`
 repositories, `quant-cloud-init-action` v4.0.2, `quant-cloud-compose-action` v4.0.1,
 `quant-cloud-environment-action` v4.1.1, `quant-cloud-environment-state-action` v4.0.2,
-`deploy-action` v7.1.1 and `purge-action` v7.1.1.
+`deploy-action` v7.1.2 and `purge-action` v7.1.1.
 
 | | Public | Gov |
 |---|---|---|
@@ -293,5 +293,5 @@ password.
   `quant-ci-github-actions` (workflows and versions), `quant-studio`, `quant-cms-integrations`
 
 <!-- checked against gh:quantcdn/quant-cloud-compose-action 4.0.1 -->
-<!-- checked against gh:quantcdn/deploy-action 7.1.1 -->
+<!-- checked against gh:quantcdn/deploy-action 7.1.2 -->
 <!-- checked against gh:quantcdn/quant-cloud-environment-action 4.1.1 -->

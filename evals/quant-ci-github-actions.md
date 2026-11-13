@@ -3,7 +3,7 @@
 Prompt: Write the GitHub Actions workflow for my Hugo site on QuantCDN (dashboard.quantcdn.io). Every push to `main` builds with `hugo --minify` and deploys to the Quant project `marketing` in organisation `acme`, then clears the cache. Our security team requires every third-party action to be pinned to a commit SHA, not a tag. Tell me which values go in repository secrets and which in variables, and why each choice.
 Platform: public
 Must include:
-- `quantcdn/deploy-action@d6d776177f9fbdf781a7d09c071185a9e509fcc3 # v7.1.1` with the comment `# v7.1.1`
+- `quantcdn/deploy-action@07141321c35c2073abcd3973e2aed1c95f401259 # v7.1.2` with the comment `# v7.1.2`
 - `quantcdn/purge-action@540559574168b65a2310781a1656b06f45e01a71 # v7.1.1` with the comment `# v7.1.1`, `url_pattern: "/*"`
 - `dir: public` (relative to the workspace)
 - The project token (from the project's Integrations page) is a secret; customer and project names are not sensitive and can be variables
@@ -43,7 +43,7 @@ Must not include:
 Prompt: We use GitLab CI, not GitHub, and our dashboard is https://dash.quantgov.cloud. One job must deploy the static site in `dist/` to our Quant project and clear the cache. Another job must redeploy the Quant Cloud environment `production` of application `intranet` (organisation `agency`) after we push a new image. Can we use `qc` in the pipeline with a token? Show both jobs.
 Platform: gov
 Must include:
-- The static job runs `quant` (the `quantcdn/cli:7.2.0` image with its entrypoint cleared, or `npm install -g @quantcdn/quant-cli`) with `QUANT_CLIENT_ID`, `QUANT_PROJECT`, `QUANT_TOKEN` and `QUANT_ENDPOINT=https://api.quantgov.cloud/v1`
+- The static job runs `quant` (the `quantcdn/cli:7.4.0` image with its entrypoint cleared, or `npm install -g @quantcdn/quant-cli`) with `QUANT_CLIENT_ID`, `QUANT_PROJECT`, `QUANT_TOKEN` and `QUANT_ENDPOINT=https://api.quantgov.cloud/v1`
 - `quant deploy dist` followed by `quant purge "/*"`
 - `qc` logs in with a browser (OAuth) and has no token option for unattended use, so the pipeline calls the platform API with `curl` instead
 - `PUT https://dash.quantgov.cloud/api/v3/organizations/agency/applications/intranet/environments/production/state` with `{"action": "redeploy"}` and `Authorization: Bearer <API token>`

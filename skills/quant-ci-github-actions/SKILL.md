@@ -14,7 +14,7 @@ skill covers the pipeline around it.
 ## Applies to
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
-Checked 2026-10-31 against each action's `action.yml` and source at its latest tag, `quant` 7.2.0 and
+Checked 2026-11-07 against each action's `action.yml` and source at its latest tag, `quant` 7.4.0 and
 `qc` 0.7.0. All versions, SHAs, inputs and outputs: [references/actions.md](references/actions.md).
 
 | Value | Public | Gov | Used by |
@@ -61,7 +61,7 @@ your workflow. A commit SHA cannot change. Pin the full 40-character SHA and kee
 comment, so people and Dependabot can read it:
 
 ```yaml
-uses: quantcdn/deploy-action@d6d776177f9fbdf781a7d09c071185a9e509fcc3 # v7.1.1
+uses: quantcdn/deploy-action@07141321c35c2073abcd3973e2aed1c95f401259 # v7.1.2
 ```
 
 Let Dependabot raise update pull requests: add `.github/dependabot.yml` with an `updates` entry for
@@ -275,7 +275,7 @@ Static deploys have the same gap in a different form: missing uploads only warn.
 
 ## Other CI systems
 
-- **Static sites:** run `quant` (`npm install -g @quantcdn/quant-cli`, or the `quantcdn/cli:7.2.0`
+- **Static sites:** run `quant` (`npm install -g @quantcdn/quant-cli`, or the `quantcdn/cli:7.4.0`
   image with its entrypoint cleared) with `QUANT_CLIENT_ID` (not `QUANT_CUSTOMER`), `QUANT_PROJECT`,
   `QUANT_TOKEN` and, on gov, `QUANT_ENDPOINT=https://api.quantgov.cloud/v1`. Then
   `quant deploy dist` and `quant purge "/*"`. Details: `quant-cli`.
@@ -318,7 +318,7 @@ Static deploys have the same gap in a different form: missing uploads only warn.
   (compose contract, verify a deploy), `quant-templates` (template workflows), `quant-cli`, `qc-cli`,
   `quant-edge-functions-and-kv` (manifests), `quant-domains-cache-purge`
 
-<!-- checked against gh:quantcdn/deploy-action 7.1.1 -->
+<!-- checked against gh:quantcdn/deploy-action 7.1.2 -->
 <!-- checked against gh:quantcdn/search-action 2.1.1 -->
 <!-- checked against gh:quantcdn/quant-cloud-init-action 4.0.2 -->
 <!-- checked against gh:quantcdn/quant-cloud-compose-action 4.0.1 -->
