@@ -14,6 +14,7 @@ resources together. Checked against `quantcdn/quant` v5.19.1 (validated with `te
 | `quant_ai_vector_collection` | A collection (`name`, `embedding_model`) |
 | `quant_ai_vector_document` | Documents in a collection (`documents` list) |
 | `quant_ai_governance` | The organisation's governance and spend limits (one per organisation) |
+| `quant_ai_auto_mode` | The organisation's auto-mode setting (one per organisation; v5.20.0 or later). See [Auto mode](#auto-mode) |
 
 ## Example
 
@@ -116,3 +117,54 @@ Notes:
   the change as drift (v5.19.1 or later for `quant_ai_agent`).
 - Workflows, triggers and sessions stay in the dashboard or API. Register MCP servers and
   create filter policies there too; Terraform attaches them by name or ID.
+
+## Auto mode
+
+`quant_ai_auto_mode` manages the organisation's auto-mode setting (provider `quantcdn/quant`
+v5.20.0 or later). There is one per organisation. What the fields mean, the role lists and the
+eligibility rules: [api.md](api.md#auto-mode).
+
+```hcl
+resource "quant_ai_auto_mode" "this" {
+  enabled                  = true
+  orchestrator_model       = "ORCHESTRATOR_MODEL_ID"
+  watcher_interval_minutes = 5
+  enforcement              = "default"
+  autonomous_default       = false
+  group = {
+    roles = {
+      fast     = ["FAST_MODEL_ID"]
+      standard = ["STANDARD_MODEL_ID"]
+      deep     = ["DEEP_MODEL_ID"]
+    }
+  }
+
+  depends_on = [quant_ai_governance.org]
+}
+```
+
+Replace the placeholders with IDs from `GET /models` (or the dashboard list) for your platform;
+on QuantGov only Australian-resident models are eligible.
+
+| Argument | Notes |
+|---|---|
+| `enabled`, `orchestrator_model`, `watcher_interval_minutes`, `enforcement`, `autonomous_default`, `group.roles` | As in the API (`orchestrator_model` is required when `enabled` is true) |
+| `max_parallel_tasks` | Optional, 1 to 16. Leave out for no limit |
+| `organisation` | Optional organisation machine name; defaults to the provider's. Changing it replaces the resource |
+| `group.revision`, `updated_at`, `updated_by` | Computed |
+
+- Apply `quant_ai_governance` first, with `depends_on`. Auto mode cannot be saved before the
+  organisation has governance settings.
+- If the organisation already has an auto-mode setting, a create fails with a hint to import.
+  Import it with `terraform import quant_ai_auto_mode.this <organisation>`.
+- If someone saves auto mode in the dashboard, the stored revision changes and the next apply can
+  fail with a revision conflict. Refresh, then apply again. `terraform apply` refreshes first;
+  Pulumi needs `pulumi up --refresh`.
+- Removing `max_parallel_tasks` or `orchestrator_model` from the configuration keeps the last
+  stored value. Set a new value to change it.
+- Destroy resets the setting to not configured.
+
+Pulumi: `quant.AiAutoMode` (type token `quant:index:AiAutoMode`) with the same fields in camelCase
+(`orchestratorModel`, `watcherIntervalMinutes`, `maxParallelTasks`, `autonomousDefault`,
+`group.roles.fast`, `.standard`, `.deep`). Import with
+`pulumi import quant:index:AiAutoMode <name> <organisation>`.
