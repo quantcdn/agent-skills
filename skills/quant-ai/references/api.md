@@ -26,6 +26,7 @@ https://docs.quantcdn.io/ai/api-reference/.
 | | `GET`/`POST`/`DELETE /vector-db/collections/{id}/documents`, `POST .../query` | |
 | Files | `GET`/`POST /files`, `GET`/`DELETE /files/{id}` | |
 | Governance | `GET`/`PUT /governance`, `GET /governance/spend` | AI governance permission |
+| Auto mode | `GET`/`PUT`/`DELETE /auto-mode` | GET: scope `ai:use`; PUT, DELETE: scope `ai:manage` and the AI governance permission. See [Auto mode](#auto-mode) |
 | Filter policies | `GET`/`POST /filter-policies`, `GET`/`PUT`/`DELETE /filter-policies/{id}`, `PUT .../enable`, `PUT .../disable` | |
 | Usage | `GET /usage` (subscription permission), `GET /usage/me` (own usage) | |
 | Other | `/tasks`, `/orchestrations` (start, pause, resume, cancel, batches), `/slack-bots`, `GET /mcp-servers` | See the docs pages |
@@ -143,15 +144,105 @@ Delete documents: one of `purgeAll: true`, `documentIds`, `keys`, or
 Interface labels include `api-gateway`, `streaming`, `workflow`, `orchestration`, `embedding`,
 `slack`, `ai-search`.
 
+## Auto mode
+
+Auto mode lets QuantCode pick a model for each task. An orchestrator model plans and delegates,
+and tasks run on one of three ordered role lists: `fast` (quick, simple tasks), `standard` (most
+coding tasks) and `deep` (hard problems and code review). The first model in a list is tried
+first and the rest are fallbacks. Code review uses the first `deep` model; review quality is best
+with an Opus model. Dashboard: AI, Governance, Auto mode, then **Save auto mode** (separate from
+the governance save).
+
+| Call | Response |
+|---|---|
+| `GET /auto-mode` | `{"autoMode": <config or null>, "eligible": <report or null>}`. `null` means not configured |
+| `PUT /auto-mode` | 200 `{"autoMode": {...}}` |
+| `DELETE /auto-mode` | 200 `{"autoMode": null}`. The setting goes back to not configured |
+
+The token needs the scope `ai:use` (and permission to use AI services) for GET, and `ai:manage`
+(and the AI governance permission) for PUT and DELETE.
+
+```bash
+curl -s -X PUT "$AI/auto-mode" -H "Authorization: Bearer $QUANT_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": true,
+       "orchestratorModel": "ORCHESTRATOR_MODEL_ID",
+       "group": {"revision": 3, "roles": {
+         "fast": ["FAST_MODEL_ID"],
+         "standard": ["STANDARD_MODEL_ID"],
+         "deep": ["DEEP_MODEL_ID", "FALLBACK_DEEP_MODEL_ID"]}},
+       "watcherIntervalMinutes": 5,
+       "maxParallelTasks": 4,
+       "enforcement": "default",
+       "autonomousDefault": false}'
+```
+
+Take every model ID from `GET /models` (or the dashboard list) for your platform.
+
+| Field | Notes |
+|---|---|
+| `enabled` | Boolean |
+| `orchestratorModel` | Model ID of the orchestrator. Required when `enabled` is true |
+| `group.roles.fast`, `.standard`, `.deep` | Ordered lists of 0 to 5 model IDs; the first is tried first |
+| `group.revision` | Integer. Send the value you read; omit it on the first save. Returned on every response |
+| `watcherIntervalMinutes` | 0 to 60. The watcher checks running tasks at this interval; 0 turns it off |
+| `maxParallelTasks` | 1 to 16. Omit for no limit |
+| `enforcement` | `default`: developers can turn auto mode off. `required`: they cannot, and the organisation's model choices are locked in QuantCode's config |
+| `autonomousDefault` | Boolean. Autonomous jobs use auto mode unless the job chooses (see below) |
+| `updatedAt`, `updatedBy` | Response only |
+
+Errors from PUT:
+
+| Status | Meaning | Fix |
+|---|---|---|
+| 400 "Some auto-mode models are not eligible for this organisation" | One or more models cannot be used; the body has the `eligible` report | Remove every ineligible model, then save |
+| 409 "Config was modified by another user. Please reload and try again." | The `group.revision` you sent is stale | GET again, apply your change, retry |
+| 409 "Save the organisation governance settings first" | The organisation has no governance settings yet | Save AI Governance once (`PUT /governance`), then save auto mode |
+| 422 | The body has the wrong shape | Check each field against the table above |
+
+The eligibility report lists each model as `{"modelId", "resolvedId", "eligible", "reason"}`.
+`reason` is present when `eligible` is false:
+
+| `reason` | Meaning |
+|---|---|
+| `unknown` | Not a known model |
+| `no_tools` | The model does not support tool use (for example an embedding model) |
+| `policy` | Blocked by the organisation's approved-models allowlist or blocklist |
+| `residency` | Not available in the platform's region |
+
+On QuantGov every save is stored with `enforcement: "required"`, whatever you send, and only
+Australian-resident models are eligible. For example, Fable 5.2 is refused with `residency`.
+
+### Autonomous jobs
+
+`POST /api/v2/organizations/{org}/ai/jobs` (dashboard host) takes an optional boolean `autoMode`:
+
+| `autoMode` | Result |
+|---|---|
+| `true` | The job uses auto mode. 400 if the organisation has no enabled setting, or (with the `eligible` report) if the orchestrator or a whole role has no eligible model |
+| `false` | The job never uses auto mode |
+| Omitted | Auto mode when the setting is enabled and `autonomousDefault` is true. If the models are not usable, the job still runs without auto mode, and the 201 reply carries `autoModeNotice` with the reason |
+
+In an auto-mode job, `code` and `debug` use the `standard` role, `plan` and `review` use `deep`,
+and the orchestrator uses `orchestratorModel`. A job's `overrides`, and a model that the
+organisation set on an agent overlay, win over auto mode.
+
+### Audit records
+
+When the organisation has the AI audit ledger on, inference events from auto-mode tasks record
+`autoMode: {"role", "revision"}` next to the model. QuantCode sends the role and revision as
+labels, so treat the recorded model as the authoritative record of what ran.
+
 ## Errors
 
 | Status | Meaning |
 |---|---|
+| 400 | Auto-mode models not eligible (with the `eligible` report) |
 | 401 | No token, wrong token type, or a token from the other platform |
 | 403 | No permission; AI disabled for the organisation; model not approved; QuantGov model not available (`model_not_available_in_region`) |
 | 404 | Unknown agent, session, collection, execution or callback |
-| 409 | Collection name exists; overlay version conflict |
-| 422 | Invalid request (for example `/oai/v1`, governance) |
+| 409 | Collection name exists; overlay version conflict; auto-mode revision conflict; auto mode saved before governance |
+| 422 | Invalid request (for example `/oai/v1`, governance, auto mode) |
 | 429 | Spend limit reached; wait for the daily or monthly reset |
 
 ## OpenAI-compatible API
