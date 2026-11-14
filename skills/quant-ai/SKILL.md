@@ -263,7 +263,7 @@ Auto mode is an organisation setting that lets QuantCode pick a model for each t
 orchestrator model plans the work and hands tasks to models from three ordered role lists:
 `fast` (quick, simple tasks), `standard` (most coding tasks) and `deep` (hard problems and code
 review). QuantCode tries the first model in a list first, and the rest are fallbacks. Code review
-uses the first `deep` model, and review quality is best with an Opus model.
+uses the first `deep` model, so put your strongest model first in that list.
 
 - Dashboard: AI, Governance, **Auto mode** section, with its own **Save auto mode** button (the
   governance save does not save it). Save the governance settings at least once before you save

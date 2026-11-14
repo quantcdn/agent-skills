@@ -149,8 +149,8 @@ Interface labels include `api-gateway`, `streaming`, `workflow`, `orchestration`
 Auto mode lets QuantCode pick a model for each task. An orchestrator model plans and delegates,
 and tasks run on one of three ordered role lists: `fast` (quick, simple tasks), `standard` (most
 coding tasks) and `deep` (hard problems and code review). The first model in a list is tried
-first and the rest are fallbacks. Code review uses the first `deep` model; review quality is best
-with an Opus model. Dashboard: AI, Governance, Auto mode, then **Save auto mode** (separate from
+first and the rest are fallbacks. Code review uses the first `deep` model; put your strongest
+model first in that list. Dashboard: AI, Governance, Auto mode, then **Save auto mode** (separate from
 the governance save).
 
 | Call | Response |
@@ -211,7 +211,8 @@ The eligibility report lists each model as `{"modelId", "resolvedId", "eligible"
 | `residency` | Not available in the platform's region |
 
 On QuantGov every save is stored with `enforcement: "required"`, whatever you send, and only
-Australian-resident models are eligible. For example, Fable 5.2 is refused with `residency`.
+Australian-resident models are eligible. A model that is not available in Australia is refused
+with `residency`.
 
 ### Autonomous jobs
 

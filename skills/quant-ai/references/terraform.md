@@ -127,15 +127,15 @@ eligibility rules: [api.md](api.md#auto-mode).
 ```hcl
 resource "quant_ai_auto_mode" "this" {
   enabled                  = true
-  orchestrator_model       = "anthropic.claude-opus-5-5"
+  orchestrator_model       = "ORCHESTRATOR_MODEL_ID"
   watcher_interval_minutes = 5
   enforcement              = "default"
   autonomous_default       = false
   group = {
     roles = {
-      fast     = ["anthropic.claude-haiku-5-5"]
-      standard = ["anthropic.claude-sonnet-5-5"]
-      deep     = ["anthropic.claude-opus-5-5"]
+      fast     = ["FAST_MODEL_ID"]
+      standard = ["STANDARD_MODEL_ID"]
+      deep     = ["DEEP_MODEL_ID"]
     }
   }
 
@@ -143,7 +143,7 @@ resource "quant_ai_auto_mode" "this" {
 }
 ```
 
-The model IDs are examples. Pick IDs from `GET /models` (or the dashboard list) for your platform;
+Replace the placeholders with IDs from `GET /models` (or the dashboard list) for your platform;
 on QuantGov only Australian-resident models are eligible.
 
 | Argument | Notes |
