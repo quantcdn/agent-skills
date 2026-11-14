@@ -66,6 +66,7 @@ Arguments, models and behaviour: `quant-ai`. Gov customers see Australian-reside
 |---|---|---|
 | `quant_ai_agent` | `AiAgent` | agent ID |
 | `quant_ai_agent_overlay` | `AiAgentOverlay` | `organisation/agent_id` |
+| `quant_ai_auto_mode` | `AiAutoMode` | organisation machine name (v5.20.0 or later) |
 | `quant_ai_custom_tool` | `AiCustomTool` | tool name |
 | `quant_ai_governance` | `AiGovernance` | organisation name (empty ID = provider organisation) |
 | `quant_ai_skill` | `AiSkill` | skill ID |

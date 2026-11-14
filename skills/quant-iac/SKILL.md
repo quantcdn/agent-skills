@@ -120,7 +120,7 @@ Terraform name, Pulumi class (`quant.<Class>`), and every import ID: [references
 | Rules | `quant_rule_redirect`, `quant_rule_proxy`, `quant_rule_headers`, `quant_rule_auth` (basic auth), `quant_rule_custom_response`, `quant_rule_serve_static`, `quant_rule_function`, `quant_rule_content_filter`, `quant_rule_bot_challenge` |
 | KV | `quant_kv_store` (`format`), `quant_kv_item`, `quant_kv_index`, `quant_kv_ledger`; data sources `quant_kv_ledger`, `quant_kv_ledger_public_key` |
 | Quant Cloud | `quant_application`, `quant_environment`, `quant_volume`, `quant_cron_job` |
-| AI | `quant_ai_agent`, `quant_ai_agent_overlay`, `quant_ai_custom_tool`, `quant_ai_governance`, `quant_ai_skill`, `quant_ai_vector_collection`, `quant_ai_vector_document`, `quant_slack_bot`. Arguments and models: `quant-ai` |
+| AI | `quant_ai_agent`, `quant_ai_agent_overlay`, `quant_ai_auto_mode` (v5.20.0+), `quant_ai_custom_tool`, `quant_ai_governance`, `quant_ai_skill`, `quant_ai_vector_collection`, `quant_ai_vector_document`, `quant_slack_bot`. Arguments and models: `quant-ai` |
 
 Rule fields and behaviour (order, URL patterns, `$*`, WAF modes) are in `quant-rules-and-routing`.
 Compose definitions for `quant_application` are in `quant-cloud-apps`. Rules are evaluated in `weight`

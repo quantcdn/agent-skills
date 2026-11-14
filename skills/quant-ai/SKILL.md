@@ -1,6 +1,6 @@
 ---
 name: quant-ai
-description: Use when calling or configuring Quant AI services on QuantCDN or QuantGov - the AI API under `{dashboard}/api/v3/organizations/{org}/ai` (models, buffered `/chat`, SSE `/chat/stream`, async `async true` with polling and `/chat/callback`, embeddings), the OpenAI-compatible `/oai/v1` surface (OpenAI SDKs, LangChain, `base_url`), sessions, tool calling and custom tools (edge functions), agents and agent overlays, skills and skill collections, vector database collections and documents (RAG), workflows with webhook and scheduled triggers (secret or HMAC auth), AI Governance (model allowlist, guardrail presets, filter policies, spend limits), tool approvals (`pending_approval`, the Approvals page), which models are available (QuantGov is Australian-resident only), and Terraform `quant_ai_*`. Also use for 401/403/429 from the AI API, "spend limit reached", "AI services are disabled", `model_not_available_in_region`, and streams that stop part way. Not for website search or the search widget (`quant-search`).
+description: Use when calling or configuring Quant AI services on QuantCDN or QuantGov - the AI API under `{dashboard}/api/v3/organizations/{org}/ai` (models, buffered `/chat`, SSE `/chat/stream`, async `async true` with polling and `/chat/callback`, embeddings), OpenAI-compatible `/oai/v1` (OpenAI SDKs, LangChain, `base_url`), sessions, tool calling and custom tools (edge functions), agents and agent overlays, skills and skill collections, vector database collections and documents (RAG), workflows with webhook and scheduled triggers (secret or HMAC auth), AI Governance (model allowlist, guardrail presets, filter policies, spend limits), tool approvals (`pending_approval`, the Approvals page), which models are available (QuantGov is Australian-resident only), auto mode, and Terraform `quant_ai_*`. Also use for 401/403/429 from the AI API, "spend limit reached", "AI services are disabled", `model_not_available_in_region`, and streams that stop part way. Not for website search or the search widget (`quant-search`).
 ---
 
 # Quant AI services
@@ -14,7 +14,8 @@ This skill covers using them as a customer. For the platform overview load `quan
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Identify the platform by the dashboard URL only; ask the customer if you do not know it. Features
 are the same; QuantGov offers Australian-resident models only. Checked 2026-10 against the public
-docs, the public API specification (4.25.0) and Terraform `quantcdn/quant` v5.19.1.
+docs, the public API specification (4.25.0) and Terraform `quantcdn/quant` v5.19.1; auto mode
+checked 2026-11 against Terraform `quantcdn/quant` v5.20.0.
 
 | | QuantCDN | QuantGov |
 |---|---|---|
@@ -256,6 +257,36 @@ AI Services, AI Governance (needs the AI governance permission), `GET`/`PUT /gov
   resets: next day for daily caps, next month for monthly caps. Current Spend in the dashboard, or
   `GET /governance/spend`, shows month-to-date and today.
 
+## Auto mode
+
+Auto mode is an organisation setting that lets QuantCode pick a model for each task. An
+orchestrator model plans the work and hands tasks to models from three ordered role lists:
+`fast` (quick, simple tasks), `standard` (most coding tasks) and `deep` (hard problems and code
+review). QuantCode tries the first model in a list first, and the rest are fallbacks. Code review
+uses the first `deep` model, so put your strongest model first in that list.
+
+- Dashboard: AI, Governance, **Auto mode** section, with its own **Save auto mode** button (the
+  governance save does not save it). Save the governance settings at least once before you save
+  auto mode.
+- API: `GET`/`PUT`/`DELETE /auto-mode` under the AI base. GET needs the token scope `ai:use`;
+  PUT and DELETE need `ai:manage` and the AI governance permission. DELETE returns the setting to
+  "not configured".
+- Every model must be eligible: known, able to use tools, allowed by the organisation's model
+  policy, and available in the platform's region. A save with an ineligible model returns 400 with
+  an `eligible` report that gives the reason for each model. Remove those models and save again.
+- Send back the `group.revision` you read. A 409 "Config was modified by another user" means
+  someone saved first: read again, then retry.
+- `enforcement`: `default` lets developers turn auto mode off; `required` stops them and locks the
+  organisation's model choices in QuantCode's config. On QuantGov every save is stored as
+  `required`, and only Australian-resident models are eligible.
+- Autonomous jobs: `autonomousDefault` makes jobs use auto mode unless the job sets `autoMode`.
+  A job's `overrides`, and a model set on an agent overlay, win over auto mode.
+- Take model IDs from `GET /models` (or the dashboard list) for your platform, not from examples.
+
+Fields, errors, the eligibility report, autonomous jobs and audit records:
+[references/api.md](references/api.md#auto-mode). Terraform `quant_ai_auto_mode` and Pulumi
+`AiAutoMode`: [references/terraform.md](references/terraform.md#auto-mode).
+
 ## Tool approvals
 
 An organisation can require a person's approval before chosen platform tools run. Quant turns this
@@ -270,8 +301,8 @@ QuantCode, **Escape** means "decide later": no decision is sent and the proposal
 ## Terraform and Pulumi
 
 Resources: `quant_ai_agent`, `quant_ai_agent_overlay`, `quant_ai_custom_tool`, `quant_ai_skill`,
-`quant_ai_vector_collection`, `quant_ai_vector_document`, `quant_ai_governance` (one per
-organisation). Required fields and an example: [references/terraform.md](references/terraform.md).
+`quant_ai_vector_collection`, `quant_ai_vector_document`, `quant_ai_governance` and
+`quant_ai_auto_mode` (one each per organisation; auto mode needs v5.20.0 or later). Required fields and an example: [references/terraform.md](references/terraform.md).
 Workflows, triggers, sessions, filter policies and MCP servers are not Terraform resources. An
 agent or overlay attaches existing filter policies and MCP servers (`filter_policies`, `mcp_servers`).
 Provider setup (`base_url` is the bare dashboard host, `https://dash.quantgov.cloud` on gov), Pulumi
@@ -318,6 +349,10 @@ guardrail presets follow the Australian PSPF classifications (OFFICIAL, OFFICIAL
 | A platform agent setting disappears after a change | An overlay PUT without that field; the PUT replaces the whole overlay | GET the overlay, then send every field back. Terraform v5.18.0 and later keep the other fields ([Terraform](references/terraform.md)) |
 | Agent tool calls fail after a change | Tool deleted or removed from the agent | Re-assign or redeploy the tool |
 | Tool result `pending_approval`; the tool does not run | The organisation requires approval for that tool | Decide on AI Services, Approvals; the result arrives on the next turn ([tool approvals](references/tool-approvals.md)) |
+| 400 "Some auto-mode models are not eligible for this organisation" | A model is unknown, has no tool use, is blocked by the model policy, or is not in the region (`residency` on QuantGov) | Read the `eligible` report, remove each ineligible model, save again ([auto mode](references/api.md#auto-mode)) |
+| 409 "Save the organisation governance settings first" | Auto mode saved before any governance settings | Save AI Governance once (Terraform: apply `quant_ai_governance` first) |
+| 409 "Config was modified by another user" on auto mode | Stale `group.revision` | Read the setting again and retry; Terraform refreshes on apply, Pulumi needs `pulumi up --refresh` |
+| Autonomous job ran without auto mode | `autoMode` omitted and the auto-mode models were not usable | Read `autoModeNotice` in the 201 reply; fix the models, or send `autoMode: true` to fail fast |
 | Webhook 401 | Wrong mode, secret rotated, body changed after signing | Reveal the secret; sign the exact raw body; match the auth mode |
 | Vector query returns nothing | `threshold` too high, wrong collection, no documents | Lower `threshold` (for example 0.5), check the collection ID, list documents |
 | Website pages not answerable | Used a vector collection for site search | Use AI Search (`quant-search`) |
@@ -328,4 +363,4 @@ guardrail presets follow the Australian PSPF classifications (OFFICIAL, OFFICIAL
   skills, vector database, workflows, webhook secrets, governance, filter policies, Slack bots, MCP servers)
 - Related skills: `quant-platform`, `quant-search`, `quant-iac`, `quant-edge-functions-and-kv`
 
-<!-- checked against tf:quantcdn/quant 5.19.1 -->
+<!-- checked against tf:quantcdn/quant 5.20.0 -->
