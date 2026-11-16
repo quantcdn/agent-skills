@@ -71,8 +71,9 @@ From the public OpenAPI (`healthCheck` on a container):
 
 The environment's **startup grace period** (`startupGracePeriodSeconds`, default 120, 0 to 3600)
 is separate: it controls how long unhealthy load-balancer and container checks are
-ignored when deciding to replace a starting task. It does not delay container probes
-or make an unhealthy task ready to serve traffic. See SKILL.md.
+ignored when the platform decides whether to replace a starting task. It applies to environments
+behind the load balancer. It does not delay container probes or make an unhealthy task ready to
+serve traffic. See SKILL.md.
 
 ## Image tags
 
