@@ -203,11 +203,15 @@ API body: [references/api.md](references/api.md#create-an-application).
   executable and have a shebang. A failing script stops the container from starting. Keep them
   idempotent: they run at every start of every task.
 - **Container health check:** the compose `healthcheck` (`start_period` up to 300 s).
-- **Startup grace period:** how long the load balancer ignores failing health checks after a task
-  starts. Default **120 s**, up to 3600, set on the environment (dashboard, next to scaling, or
-  `startupGracePeriodSeconds`). It is a ceiling: a task that is healthy sooner serves sooner. If boot
-  work (migrations, cache warm-up) takes longer, raise it above the worst case, or the platform
-  replaces the task mid-boot and the deploy loops.
+  Probes run during this period; failed probes do not count toward retries until it ends.
+  An early successful probe ends that protection.
+- **Startup grace period:** how long the platform ignores unhealthy load-balancer and container
+  checks after a task starts, when it decides whether to replace the task. It applies to
+  environments behind the load balancer (any environment that serves HTTP). It does not make an
+  unhealthy task ready. Default **120 s**, up to 3600, set on the environment (dashboard, next to
+  scaling, or `startupGracePeriodSeconds`). It is a ceiling: a task that is healthy sooner serves
+  sooner. If boot work (migrations, cache warm-up) takes longer, raise it above the worst case,
+  or the platform replaces the task mid-boot and the deploy loops.
 
 ## Deploy and verify
 
@@ -238,8 +242,22 @@ unpullable release leaves running below desired, and its logs (or the deployment
 
 **Single-task mode** allows at most one running task. A deploy then stops the old task before the
 new one starts, so every deploy is a short outage. The platform turns it on when it detects stateful
-containers, unless you set `singleTaskOnly`. For zero-downtime deploys on a stateless app, set
-`singleTaskOnly: false` and a minimum of 2 tasks.
+containers, unless you set `singleTaskOnly`. This is separate from the scaling range:
+`minCapacity: 1` and `maxCapacity: 1` do not by themselves turn on single-task mode.
+
+**Spot strategy `spot-only` with `tolerateDowntime: true`** also stops the old task before the new
+one starts. The dashboard selects this strategy by default for new non-production environments. A
+`spot-only` environment with a fixed scaling range (min = max) requires `tolerateDowntime: true`.
+
+In every other case, a deploy starts the new task and stops the old one only when the new task is
+healthy, even at one task. For zero-downtime deploys on a stateless app:
+
+- Set `singleTaskOnly: false`.
+- Use a spot strategy other than `spot-only` (for example `off`, on-demand only, which costs more).
+- Make sure the new task passes its health checks within the startup grace period.
+
+A second task is not necessary for zero-downtime deploys, but it keeps the app up when one task
+fails or is replaced.
 
 ## Run the app
 
@@ -291,7 +309,7 @@ API calls for all of these: [references/api.md](references/api.md).
 | `503 Service Unavailable - App not ready` (app-node) | Nothing listens on 3001: app still starting, crashed, wrong port, or Next.js bound to another host | `qc env logs`; `PORT=3001`; `HOSTNAME=0.0.0.0` at exec |
 | `504 Gateway Timeout` after 30 s (app-node) | The request took longer than the proxy timeout | Make the request faster, or raise `QUANT_PROXY_TIMEOUT` |
 | `[quant-proxy] Error forwarding to app: socket hang up` | The app process died mid-request | Read the log lines above it for the crash |
-| Tasks restart during every deploy; logs show boot work cut off | Boot is longer than the startup grace period | Raise the grace period above worst-case boot; move migrations to a hook or `qc exec` |
+| Tasks restart during every deploy; logs show boot work cut off | Boot is longer than the startup grace period or the health check allows, or the app fails during boot | Check the stop reason in **Deployments** and the logs. Raise the grace period above worst-case boot; move migrations to a hook or `qc exec` |
 | App slow, then replaced; `qc env metrics` near 100% CPU or memory | Task too small (often the 256/512 default) | Set `quant.task.cpu`/`quant.task.memory`, redeploy |
 | App dials `db` or `localhost` for its database | Compose `environment:` sets `DB_*` and overrides the injected values | Remove them from the deployed compose; use the override file |
 | No `DB_*` variables at all | The app was created without a database (wrong body shape, or toggle off) | Create it with `"database": {"engine": ...}`; check the app shows a database |
@@ -303,7 +321,7 @@ API calls for all of these: [references/api.md](references/api.md).
 | `permission denied` writing to a volume | Writer is not UID 1000 | Run as UID 1000; `chown` to 1000 |
 | A directory is missing at runtime, or empty after every deploy | It is not on a volume: the path is not in the image, or the image copy is replaced | Add a volume at that path (see [Run the app](#run-the-app)) |
 | A volume added to `docker-compose.yml` never appears | CI only builds and redeploys; it does not deploy the compose file. Or the environment existed before the volume | Run the compose and environment actions in CI, or add the volume in the dashboard for each environment |
-| Every deploy causes a short outage | Single-task mode, or one task | `singleTaskOnly: false` and min 2 tasks if the app is stateless |
+| Every deploy causes a short outage | Single-task mode, spot strategy `spot-only` with `tolerateDowntime`, or new tasks that fail health checks | If the app is stateless, set `singleTaskOnly: false` and a spot strategy other than `spot-only`; check **Deployments** and the logs for failed tasks |
 | CI green but the site shows the old version | Deploy still rolling, or new tasks failing | `qc env list`, `qc env logs`, dashboard **Deployments** |
 | Container exits at once with `exec format error` | Image architecture differs from `quant.architecture` | Build for the matching platform |
 | Hook in `/quant-entrypoint.d/` never runs | Not `.sh`, not executable, or in a subdirectory | `chmod +x`, `.sh`, top level |
