@@ -82,7 +82,7 @@ app has a database (dashboard: environment details shows the database; the Backu
 |---|---|
 | `taskCpu`, `taskMemory` | Same values as `quant.task.cpu` / `quant.task.memory` |
 | `architecture` | `ARM64` or `X86_64` |
-| `containers[]` | `name`, `imageReference` (`internal` = tag only, `external` = full image), `exposedPorts`, `environment`, `secrets`, `mountPoints`, `healthCheck`, `dependsOn`, `command`, `entryPoint`, `user`, `workingDirectory`, `cpu`, `memory`, `memoryReservation`, `essential` |
+| `containers[]` | `name`, `imageReference` (`internal` = tag only, `external` = full image), `exposedPorts`, `environment`, `secrets`, `mountPoints`, `healthCheck`, `dependsOn`, `command`, `entryPoint`, `user`, `workingDirectory`, `cpu`, `memory`, `memoryReservation`, `essential`, `loadBalancerHealthCheck` (`path`, `intervalSeconds`) |
 | `minCapacity`, `maxCapacity` | Task count range |
 | `singleTaskOnly` | `true`: at most one running task. `false`: scaling allowed. Omitted: the platform turns it on when it detects stateful containers |
 | `startupGracePeriodSeconds` | Default 120, 0 to 3600 |

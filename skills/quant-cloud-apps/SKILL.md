@@ -203,6 +203,10 @@ API body: [references/api.md](references/api.md#create-an-application).
   executable and have a shebang. A failing script stops the container from starting. Keep them
   idempotent: they run at every start of every task.
 - **Container health check:** the compose `healthcheck` (`start_period` up to 300 s).
+- **Load balancer health check:** `/` every 45 s by default, which renders the home page each time.
+  Set `loadBalancerHealthCheck` (or the `quant.healthcheck.path` / `quant.healthcheck.interval`
+  labels) to change it. Images on `app-apache-php` serve `/_quant/health` without running the app
+  ([details](references/compose-contract.md#load-balancer-health-check)).
   Probes run during this period; failed probes do not count toward retries until it ends.
   An early successful probe ends that protection.
 - **Startup grace period:** how long the platform ignores unhealthy load-balancer and container
