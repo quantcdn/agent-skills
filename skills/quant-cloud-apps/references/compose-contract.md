@@ -36,6 +36,7 @@ warnings (compose action log, or `translationWarnings` from the validate API) to
 | `quant.type: none` | The service is not deployed. Use it for local-only helpers (mail catchers, a local Redis). |
 | `quant.type: mysql` / `quant.type: postgres` | Marks the local database service. It is not deployed as a container. Use the managed database instead (see below). |
 | `quant.cpu`, `quant.memory`, `quant.memory.reservation` | Per-container CPU units and memory (MiB). Optional; task labels set the task size. |
+| `quant.healthcheck.path`, `quant.healthcheck.interval` | Load balancer health check for the ports this service exposes: path (starts with `/`) and seconds between checks (15 to 300). Default `/` every 45 s. See below. |
 
 Labels can be written as a map (`quant.type: none`) or a list (`- "quant.type=none"`).
 
@@ -74,6 +75,34 @@ is separate: it controls how long unhealthy load-balancer and container checks a
 ignored when the platform decides whether to replace a starting task. It applies to environments
 behind the load balancer. It does not delay container probes or make an unhealthy task ready to
 serve traffic. See SKILL.md.
+
+## Load balancer health check
+
+The load balancer requests `/` on each exposed port every 45 seconds. Each request renders the
+home page. To use a cheaper path or a longer interval, set `loadBalancerHealthCheck` on the
+container (API, dashboard container settings) or the service labels in compose:
+
+```yaml
+services:
+  wordpress:
+    labels:
+      quant.healthcheck.path: /_quant/health
+      quant.healthcheck.interval: "60"
+```
+
+| Field | Label | Default | Range |
+|---|---|---|---|
+| `path` | `quant.healthcheck.path` | `/` | starts with `/`, up to 1024 characters |
+| `intervalSeconds` | `quant.healthcheck.interval` | 45 | 15 to 300 |
+
+- Images built on `app-apache-php` (including `app-wordpress` and `app-drupal`) answer
+  `/_quant/health` with a static `ok`. Apache serves it without PHP and without reading the
+  document root or volumes.
+- The check passes on any 2xx status and on 300, 301, 302, 304, 308, 400, 401, 403 and 404. Other
+  statuses (for example 303, 307 or 5xx) fail it. It shows that the container answers, not that the
+  application works.
+- A saved change updates the load balancer at once. An invalid value fails validation (HTTP 400).
+  `null`, or removing the labels and importing again, restores the default.
 
 ## Image tags
 
