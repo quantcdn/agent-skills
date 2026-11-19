@@ -98,10 +98,11 @@ services:
 - Images built on `app-apache-php` (including `app-wordpress` and `app-drupal`) answer
   `/_quant/health` with a static `ok`. Apache serves it without PHP and without reading the
   document root or volumes.
-- The check passes on any status from 200 to 404. It shows that the container answers, not that the
+- The check passes on any 2xx status and on 300, 301, 302, 304, 308, 400, 401, 403 and 404. Other
+  statuses (for example 303, 307 or 5xx) fail it. It shows that the container answers, not that the
   application works.
-- An invalid value fails validation (HTTP 400). `null`, or removing the labels, restores the default
-  on the next deploy.
+- A saved change updates the load balancer at once. An invalid value fails validation (HTTP 400).
+  `null`, or removing the labels and importing again, restores the default.
 
 ## Image tags
 
