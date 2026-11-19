@@ -145,8 +145,12 @@ Their secrets stay on GitHub.
 ### Differences from `ubuntu-latest`
 
 - The image has the common tools (git, Docker with buildx and compose, Node.js LTS, Python 3,
-  build-essential, AWS CLI v2, jq) but not every tool of `ubuntu-latest`. Use the `setup-*`
+  build-essential, AWS CLI v2, jq, yq, gh) but not every tool of `ubuntu-latest`. Use the `setup-*`
   actions (`actions/setup-node`, `setup-python`, `setup-java`, `setup-go`) or `sudo apt-get install`.
+- PHP 8.3 (the default, as on `ubuntu-latest`) and PHP 8.4 are installed with the same extensions
+  as on `ubuntu-latest`, and Composer is on the `PATH`. `shivammathur/setup-php` switches between
+  these two versions in a few seconds; another version installs as on GitHub and takes longer.
+  As on GitHub, Xdebug is on and PCOV is off: set `coverage: none` or `coverage: pcov` to change this.
 - A job starts in a fresh, empty environment every time. Use `actions/cache` as on GitHub.
 
 ## Common problems
