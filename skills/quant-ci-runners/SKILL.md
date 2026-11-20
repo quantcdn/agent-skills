@@ -1,6 +1,6 @@
 ---
 name: quant-ci-runners
-description: Use when running GitHub Actions jobs on Quant CI runners on QuantCDN or QuantGov - creating a CI runner pool (Small, Medium, Large; arm64 and x64), connecting the GitHub App to a GitHub organisation, the `runs-on: [self-hosted, quant, <pool>, <arch>]` labels, CI secrets and variables (org scope, repo scope, branch rules, `${{ env.NAME }}` instead of `${{ secrets.NAME }}`), the values API `{dashboard}/api/v3/organizations/{org}/ci/values`, and migrating workflows and their existing GitHub secrets from GitHub-hosted runners without typing any secret again. Also use when a Quant job stays queued, a job on a public repository never starts, a value is empty in a job, a pull request from a fork gets no values, or a branch-scoped value is missing on a tag or pull request run.
+description: Use when running GitHub Actions jobs on Quant CI runners on QuantCDN or QuantGov - creating a CI runner pool (Small, Medium, Large; arm64 and x64), connecting the GitHub App to a GitHub organisation, the `runs-on: [self-hosted, quant, <pool>, <arch>]` labels, CI secrets and variables (org scope, repo scope, branch rules, `${{ env.NAME }}` instead of `${{ secrets.NAME }}`), the values API `{dashboard}/api/v3/organizations/{org}/ci/values`, the build cache (`actions/cache`, buildx `type=gha`, cache residency, clear the cache), and migrating workflows and their existing GitHub secrets from GitHub-hosted runners without typing any secret again. Also use when a cache is not restored, a Quant job stays queued, a job on a public repository never starts, a value is empty in a job, a pull request from a fork gets no values, or a branch-scoped value is missing on a tag or pull request run.
 ---
 
 # Quant CI runners
@@ -17,7 +17,7 @@ secrets live.
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 GitHub Actions only. CI runner pools must be enabled for your Quant organisation; if the
 dashboard does not show **CI runner pools** on the organisation's Resources page, contact support.
-Checked 2026-11-03 against the dashboard, the values API and the GitHub Actions runner 2.338.
+Checked 2026-11-21 against the dashboard, the values API and the GitHub Actions runner 2.338.
 
 ## Pools
 
@@ -46,6 +46,11 @@ Create a pool on the organisation's **Resources** page, under **CI runner pools*
 3. In your GitHub organisation's runner group settings, keep **Allow public repositories** off.
 
 One pool serves one GitHub organisation.
+
+### Cache residency
+
+Each pool has a **Cache residency** setting. It decides what happens when the pool's cache is
+unavailable. See [Build cache](#build-cache).
 
 ### Labels
 
@@ -116,6 +121,63 @@ curl -sS -X PUT -H "Authorization: Bearer $QUANT_API_TOKEN" -H 'Content-Type: ap
 curl -sS -X DELETE -H "Authorization: Bearer $QUANT_API_TOKEN" "$API/DEPLOY_KEY?repo=acme/web"
 ```
 
+## Build cache
+
+Jobs on Quant CI runners keep their caches in Australia. This covers `actions/cache`, the `cache:`
+input of `setup-node`, `setup-python`, `setup-go`, `setup-java` and similar actions, and Docker
+buildx `cache-from` and `cache-to` with `type=gha`. You do not change any workflow.
+
+### Branch rules
+
+The rules match GitHub's.
+
+- A run restores caches from its own branch or tag. A pull request then restores from the base
+  branch. Last, a run restores from the default branch.
+- A run saves only to its own branch. A pull request saves to `refs/pull/<number>/merge`.
+- A `pull_request_target` run uses the base branch.
+- A pull request from a fork gets no cache.
+- Each pool's caches are separate from every other pool's. Repositories never share caches.
+
+### Limits
+
+| Limit | Value |
+|---|---|
+| Save to an existing key | Refused, as on GitHub. Use a new key. |
+| Entry life | 14 days after the save |
+| Entry size | Up to 10 GiB |
+
+### Cache residency setting
+
+Set **Cache residency** on each pool.
+
+| Option | What happens |
+|---|---|
+| **Australia only** (default) | Cache data never leaves Australia. If the pool's cache is unavailable, jobs run without a cache. |
+| **Allow GitHub fallback** | If the pool's cache is unavailable, jobs use GitHub's cache. |
+
+A change applies to the next job each runner machine starts.
+
+### What still goes to GitHub
+
+Artifacts (`actions/upload-artifact` and `download-artifact`) and job logs still go to GitHub.
+
+### Manage the cache
+
+Open **CI runners → Pools** and find the **Build cache** section on the pool. It shows:
+
+- the storage used
+- the hit rate for the last 7 days
+- the entries by repository and branch
+
+Use these actions to delete cache data:
+
+| Action | Deletes |
+|---|---|
+| **Delete entry** | One entry |
+| **Clear branch** | The caches of one branch |
+| **Clear repository** | The caches of one repository |
+| **Clear cache** | The whole cache of the pool |
+
 ## Migrate from GitHub-hosted runners
 
 Full procedure, the export workflow and the import script:
@@ -151,7 +213,7 @@ Their secrets stay on GitHub.
   as on `ubuntu-latest`, and Composer is on the `PATH`. `shivammathur/setup-php` switches between
   these two versions in a few seconds; another version installs as on GitHub and takes longer.
   As on GitHub, Xdebug is on and PCOV is off: set `coverage: none` or `coverage: pcov` to change this.
-- A job starts in a fresh, empty environment every time. Use `actions/cache` as on GitHub.
+- A job starts in a fresh, empty environment every time. Caches work as on GitHub; see [Build cache](#build-cache).
 
 ## Common problems
 
@@ -162,6 +224,8 @@ Their secrets stay on GitHub.
 | Job with `arm64` never starts | The pool has only `x64` | Edit the pool to add `arm64`, or change the label |
 | First job after a quiet period takes about a minute | Machines start on demand | Expected; later jobs start at once while the pool is warm |
 | `${{ env.NAME }}` is empty | Value not saved for this repository, a branch rule does not match, a `pull_request` or tag run with a branch-ruled value, or a fork pull request | List the values with `?repo=owner/name`; check the branch rules and the event |
+| A cache is not restored | The branch rules do not reach that cache, the run is a pull request from a fork, the entry is older than 14 days, or the pool is **Australia only** and its cache is unavailable | Check the branch rules in [Build cache](#build-cache); save the cache again on the base branch; for the last case, choose **Allow GitHub fallback** on the pool |
+| `Unable to reserve cache` | The key already exists, and a save to an existing key is refused | Use a new key, or select **Delete entry** and run again |
 | `${{ secrets.NAME }}` is empty on Quant runners | The secret moved to Quant, or was never on GitHub | Use `${{ env.NAME }}` |
 | Job fails before its first step with a values error | Quant could not confirm the job | Re-run the job; if it repeats, contact support with the run URL |
 | PUT returns 400 with a reserved name | Name is reserved or has a reserved prefix | Rename it, and change the workflow to match |
