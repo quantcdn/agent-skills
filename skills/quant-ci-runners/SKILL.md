@@ -21,8 +21,7 @@ Checked 2026-11-21 against the dashboard, the values API and the GitHub Actions 
 
 ## Pools
 
-Create and manage pools under **Cloud → CI runners → Pools**. The organisation's Resources page
-shows a summary row only.
+Create and manage pools under **Cloud → CI runners → Pools**.
 
 | Tier | Concurrent jobs | Each job gets |
 |---|---|---|
