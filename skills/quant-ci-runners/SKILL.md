@@ -16,12 +16,13 @@ secrets live.
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 GitHub Actions only. CI runner pools must be enabled for your Quant organisation; if the
-dashboard does not show **CI runner pools** on the organisation's Resources page, contact support.
+dashboard does not show **Cloud → CI runners**, contact support.
 Checked 2026-11-21 against the dashboard, the values API and the GitHub Actions runner 2.338.
 
 ## Pools
 
-Create a pool on the organisation's **Resources** page, under **CI runner pools**.
+Create and manage pools under **Cloud → CI runners → Pools**. The organisation's Resources page
+shows a summary row only.
 
 | Tier | Concurrent jobs | Each job gets |
 |---|---|---|
@@ -69,7 +70,7 @@ runs-on: [self-hosted, quant, build, x64]     # pool "build", x64
 ## Secrets and variables
 
 Quant gives each job its secrets and variables when the job starts. Manage them on the
-**Secrets and variables** card under **CI runner pools**, or with the values API.
+**Cloud → CI runners → Secrets and variables**, or with the values API.
 
 | | Secret | Variable |
 |---|---|---|
@@ -163,10 +164,10 @@ Artifacts (`actions/upload-artifact` and `download-artifact`) and job logs still
 
 ### Manage the cache
 
-Open **CI runners → Pools** and find the **Build cache** section on the pool. It shows:
+Open **Cloud → CI runners → Pools** and find the **Build cache** section on the pool. It shows:
 
 - the storage used
-- the hit rate for the last 7 days
+- the hit rate for the last 7 days (hits / (hits + misses))
 - the entries by repository and branch
 
 Use these actions to delete cache data:
@@ -177,6 +178,9 @@ Use these actions to delete cache data:
 | **Clear branch** | The caches of one branch |
 | **Clear repository** | The caches of one repository |
 | **Clear cache** | The whole cache of the pool |
+
+Users who can edit the pool can delete cache entries. Every delete asks for confirmation and is
+permanent. A later job saves a new entry. If you delete a pool, its cache is deleted too.
 
 ## Migrate from GitHub-hosted runners
 
