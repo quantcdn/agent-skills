@@ -123,9 +123,11 @@ curl -sS -X DELETE -H "Authorization: Bearer $QUANT_API_TOKEN" "$API/DEPLOY_KEY?
 
 ## Build cache
 
-Jobs on Quant CI runners keep their caches in Australia. This covers `actions/cache`, the `cache:`
-input of `setup-node`, `setup-python`, `setup-go`, `setup-java` and similar actions, and Docker
-buildx `cache-from` and `cache-to` with `type=gha`. You do not change any workflow.
+Jobs on Quant CI runners keep their caches in Australia by default. This covers `actions/cache`,
+the `cache:` input of `setup-node`, `setup-python`, `setup-go`, `setup-java` and similar actions,
+and Docker buildx `cache-from` and `cache-to` with `type=gha`. You do not change any workflow, with
+one exception. Docker buildx `type=gha` needs a `docker/setup-buildx-action` step before
+`build-push-action`, because the default Docker driver cannot export a gha cache.
 
 ### Branch rules
 
@@ -135,7 +137,8 @@ The rules match GitHub's.
   branch. Last, a run restores from the default branch.
 - A run saves only to its own branch. A pull request saves to `refs/pull/<number>/merge`.
 - A `pull_request_target` run uses the base branch.
-- A pull request from a fork gets no cache.
+- A pull request from a fork gets no cache. A `pull_request_target` run that a fork started also
+  gets no cache.
 - Each pool's caches are separate from every other pool's. Repositories never share caches.
 
 ### Limits
@@ -163,7 +166,8 @@ Artifacts (`actions/upload-artifact` and `download-artifact`) and job logs still
 
 ### Manage the cache
 
-Open **Cloud → CI runners → Pools** and find the **Build cache** section on the pool. It shows:
+Open **Cloud → CI runners → Pools** and find the **Build cache** section on the pool. The section
+loads when you choose **Show build cache**. It shows:
 
 - the storage used
 - the hit rate for the last 7 days (hits / (hits + misses))
@@ -177,6 +181,8 @@ Use these actions to delete cache data:
 | **Clear branch** | The caches of one branch |
 | **Clear repository** | The caches of one repository |
 | **Clear cache** | The whole cache of the pool |
+
+If **Delete entry** or **Clear branch** is not available for a ref, use **Clear repository**.
 
 Users who can edit the pool can delete cache entries. Every delete asks for confirmation and is
 permanent. A later job saves a new entry. If you delete a pool, its cache is deleted too.
@@ -227,7 +233,8 @@ Their secrets stay on GitHub.
 | Job with `arm64` never starts | The pool has only `x64` | Edit the pool to add `arm64`, or change the label |
 | First job after a quiet period takes about a minute | Machines start on demand | Expected; later jobs start at once while the pool is warm |
 | `${{ env.NAME }}` is empty | Value not saved for this repository, a branch rule does not match, a `pull_request` or tag run with a branch-ruled value, or a fork pull request | List the values with `?repo=owner/name`; check the branch rules and the event |
-| A cache is not restored | The branch rules do not reach that cache, the run is a pull request from a fork, the entry is older than 14 days, or the pool is **Australia only** and its cache is unavailable | Check the branch rules in [Build cache](#build-cache); save the cache again on the base branch; for the last case, choose **Allow GitHub fallback** on the pool |
+| A cache is not restored | The branch rules do not reach that cache, the run is a pull request from a fork or a `pull_request_target` run that a fork started, the entry is older than 14 days, or the pool is **Australia only** and its cache is unavailable | Check the branch rules in [Build cache](#build-cache); save the cache again on the base branch; for the last case, choose **Allow GitHub fallback** on the pool |
+| buildx `type=gha` export fails | The default Docker driver does not support the gha cache | Add `docker/setup-buildx-action` before `build-push-action` |
 | `Unable to reserve cache` | The key already exists, and a save to an existing key is refused | Use a new key, or select **Delete entry** and run again |
 | `${{ secrets.NAME }}` is empty on Quant runners | The secret moved to Quant, or was never on GitHub | Use `${{ env.NAME }}` |
 | Job fails before its first step with a values error | Quant could not confirm the job | Re-run the job; if it repeats, contact support with the run URL |
