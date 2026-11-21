@@ -66,7 +66,7 @@ API type `proxy`, Terraform `quant_rule_proxy`. Ends processing.
 | `proxy_strip_headers` | Headers removed from the origin response |
 | `proxy_alert_enabled` | Inject the site-wide alert banner into HTML responses. API default `true` for a new rule |
 | `static_error_page`, `static_error_page_status_codes` | Dashboard "Use static error pages". A non-empty `static_error_page` turns it on. For each listed origin status (and for Quant's own 502), Quant serves the published page at `/_quant<status>`, for example `/_quant502`; the text in the field itself is not served. Without that page the origin's error body is passed through |
-| `failover_mode`, `failover_origin_ttfb` (ms), `failover_origin_status_codes`, `failover_lifetime` (s) | Static failover: serve Quant's static copy when the origin is slow or returns an unexpected status |
+| `failover_mode`, `failover_origin_ttfb` (ms), `failover_origin_status_codes`, `failover_lifetime` (s), `failover_threshold` | Static failover: serve Quant's static copy when the origin fails repeatedly (see below). `failover_threshold`: failures within 10 seconds before failover starts, integer 1-100; `null` or `0` uses the default, 3 |
 | `notify`, `notify_config` | Slack notifications |
 | `application_proxy`, `application_name`, `application_environment`, `application_container`, `application_port` | Proxy to a Quant Cloud application; `to` and `host` are then computed (see `quant-cloud-apps`) |
 | `waf_enabled`, `waf_config` | WAF (below) |
@@ -74,6 +74,14 @@ API type `proxy`, Terraform `quant_rule_proxy`. Ends processing.
 Origin failure (timeout or connection error): Quant's 502 page titled "Proxy Error", unless a
 `/_quant502` static error page is configured. Repeated failures in a short time make Quant answer
 with the 502 for a short cool-down without contacting the origin.
+
+Failover starts only after `failover_threshold` failures (default 3) within 10 seconds. A failure
+is a status not in `failover_origin_status_codes`, a connection error, or no first byte within
+`failover_origin_ttfb`; all kinds count together. Before the count is reached, a bad status passes
+the origin response through and a connection error or timeout gets the 502 page. Once tripped, the
+rule serves the static copy (`quant-failover: true`, `Cache-Control: s-maxage=<failover_lifetime>`)
+for `failover_lifetime` seconds without contacting the origin. Test it by checking for the
+`quant-failover` header, not by expecting the first failed request to fail over.
 
 ### `waf_config`
 
