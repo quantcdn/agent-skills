@@ -16,10 +16,10 @@ Must not include:
 - `dashboard.quantcdn.io`
 - Printing a secret value
 
-Prompt: Our job uses `runs-on: [self-hosted, quant, build, arm64]` on a public repository and never starts. What is wrong?
+Prompt: Our job uses `runs-on: [self-hosted, quant, build, arm64]` on a public repository and is refused before its first step. What is wrong?
 Platform: public
 Must include:
-- Quant CI runner pools never pick up jobs from public repositories
-- Keep the job on GitHub-hosted runners, or make the repository private
+- A pool runs jobs of public repositories only when Quant has enabled that for the pool; otherwise the job is refused before its first step
+- Contact Quant support to enable the pool for public repositories, or keep the job on GitHub-hosted runners
 Must not include:
 - Turning on "Allow public repositories" in the runner group

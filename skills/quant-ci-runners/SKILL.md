@@ -1,6 +1,6 @@
 ---
 name: quant-ci-runners
-description: Use when running GitHub Actions jobs on Quant CI runners on QuantCDN or QuantGov - creating a CI runner pool (Small, Medium, Large; arm64 and x64), connecting the GitHub App to a GitHub organisation, the `runs-on: [self-hosted, quant, <pool>, <arch>]` labels, CI secrets and variables (org scope, repo scope, branch rules, `${{ env.NAME }}` instead of `${{ secrets.NAME }}`), the values API `{dashboard}/api/v3/organizations/{org}/ci/values`, the build cache (`actions/cache`, buildx `type=gha`, cache residency, clear the cache), and migrating workflows and their existing GitHub secrets from GitHub-hosted runners without typing any secret again. Also use when a cache is not restored, a Quant job stays queued, a job on a public repository never starts, a value is empty in a job, a pull request from a fork gets no values, or a branch-scoped value is missing on a tag or pull request run.
+description: Use when running GitHub Actions jobs on Quant CI runners on QuantCDN or QuantGov - creating a CI runner pool (Small, Medium, Large; arm64 and x64), connecting the GitHub App to a GitHub organisation, the `runs-on: [self-hosted, quant, <pool>, <arch>]` labels, CI secrets and variables (org scope, repo scope, branch rules, `${{ env.NAME }}` instead of `${{ secrets.NAME }}`), the values API `{dashboard}/api/v3/organizations/{org}/ci/values`, the build cache (`actions/cache`, buildx `type=gha`, cache residency, clear the cache), and migrating workflows and their existing GitHub secrets from GitHub-hosted runners without typing any secret again. Also use when a cache is not restored, a Quant job stays queued, a job on a public repository is refused, a step ends with exit code 137, a value is empty in a job, a pull request from a fork gets no values, or a branch-scoped value is missing on a tag or pull request run.
 ---
 
 # Quant CI runners
@@ -25,9 +25,9 @@ Create and manage pools under **Cloud → CI runners → Pools**.
 
 | Tier | Concurrent jobs | Each job gets |
 |---|---|---|
-| Small | 2 | 2 vCPU, 7 GB memory, 50 GB disk |
-| Medium | 4 | 4 vCPU, 14 GB memory, 75 GB disk |
-| Large | 8 | 4 vCPU, 14 GB memory, 75 GB disk |
+| Small | 2 | 2 vCPU, 6 GiB memory, 50 GB disk |
+| Medium | 4 | 4 vCPU, 14 GiB memory, 75 GB disk |
+| Large | 8 | 4 vCPU, 14 GiB memory, 75 GB disk |
 
 - A pool has a fixed monthly price (shown on the create form) and a fixed maximum: jobs above the
   concurrent-job limit wait in GitHub's queue, they never add cost. The dashboard shows an alert
@@ -35,8 +35,23 @@ Create and manage pools under **Cloud → CI runners → Pools**.
 - Choose one or both architectures: `arm64` and `x64`. Both are in the same price.
 - Machines start when jobs arrive and stop when the pool is idle. The first job after an idle
   period waits about one minute for a machine.
-- A pool serves **private repositories only**. Jobs from public repositories are never picked
-  up (anyone can open a pull request on a public repository).
+- **Public repositories.** A pool runs jobs of public repositories only when Quant has enabled
+  that for the pool. Otherwise the job is refused before its first step. Contact Quant support to
+  enable a pool for public repositories.
+- **Memory.** Each job has 6 GiB of memory on the Small tier, and 14 GiB on the Medium and Large
+  tiers. The kernel stops a step that needs more, and the step ends with exit code 137.
+- **Processes.** Each job may have at most 16,384 processes and threads. A job at that limit
+  shows `fork: retry: Resource temporarily unavailable`.
+- **Disk.** Jobs on one virtual machine share its disk. When the machine has less than 10 GiB
+  free, it takes no new job. When it has less than 3 GiB free, the jobs running on that machine
+  are stopped and the machine is replaced. GitHub shows those jobs as a lost runner. To keep disk
+  free, clean large build outputs, prune Docker images in long jobs, or use a larger tier.
+- **Confirmation.** Every job is confirmed with GitHub before it starts. If GitHub's API has a
+  fault, or the confirmation takes longer than 15 seconds, the job fails at set-up. Run the job
+  again.
+- **Patching.** Runner machines are rebuilt every week from a patched image and replaced when
+  idle. A job in progress is never stopped for this.
+- A retry or a double click on **Create pool** does not make a second pool.
 
 ### Connect GitHub
 
@@ -64,7 +79,12 @@ runs-on: [self-hosted, quant, build, x64]     # pool "build", x64
 - `quant` and the pool name select the pool. The architecture label selects the machine type.
 - Without an architecture label, the job runs on the pool's only architecture, or on `x64` when
   the pool has both.
-- A job that asks for an architecture the pool does not have is not picked up.
+- A pool serves a job only when every label in `runs-on` is one of these: `self-hosted`,
+  `linux`, `quant`, the pool name, and at most one architecture label (`x64` or `arm64`) that the
+  pool has.
+- A job with any other label is not picked up. It stays queued on GitHub, and the pool shows the
+  alert **A job asked for labels this pool does not have**. Quant cannot cancel the job. Cancel it
+  in GitHub and fix `runs-on`.
 
 ## Secrets and variables
 
@@ -80,10 +100,21 @@ Quant gives each job its secrets and variables when the job starts. Manage them 
 - **Scope.** An org-scope value goes to every repository the App can see. A repo-scope value
   (`owner/name`) goes to that repository only and wins over an org value with the same name.
 - **Branch rules.** Optional, up to 20 per value. `main` matches one branch; `release/*` matches
-  a prefix. A value with branch rules goes only to `push`, `workflow_dispatch`, `schedule` and
-  `release` runs on a matching branch. It never goes to `pull_request` runs or tag pushes. Use
-  branch rules for deploy credentials, the way you used GitHub environments.
-- **Forks.** A pull request from a fork gets no values at all.
+  a prefix. A value with branch rules is given only to a run whose ref is one of the listed
+  branches (`refs/heads/<branch>`) on a `push`, `workflow_dispatch` or `schedule` event. A tag
+  run, a `release` event run and a pull request run do not get the value, even when the tag has
+  the same name as the branch. In those runs the value is empty in the job. Use a value with no
+  branch rule, or run the deploy from the branch. Use branch rules for deploy credentials, the
+  way you used GitHub environments.
+- **Forks.** A pull request from a fork gets no values at all. A pull request from a fork of a
+  private repository also gets no build cache, so its build is cold.
+- **Repo-scope saves.** To save a repo-scope value, the repository's GitHub owner must be
+  connected to a pool, and GitHub must be reachable. Otherwise the API answers 400 (the owner is
+  not connected to a pool) or 503 with a `Retry-After` header (GitHub is unavailable; try again
+  after that time).
+- **Repository identity.** A repo-scope value is bound to the repository itself, not to its name.
+  If a repository is deleted and a new one is created with the same name, the old value is
+  withheld, and the value list shows a withheld reason. Save the value again.
 - **Names.** `A-Z`, `0-9` and `_`, not starting with a digit, at most 100 characters. Reserved:
   `CI`, `HOME`, `PATH`, `IFS`, `ENV`, `BASH_ENV`, `PS4`, `SHELLOPTS`, `BASHOPTS`,
   `PROMPT_COMMAND`, and names that start with `GITHUB_`, `ACTIONS_`, `RUNNER_`, `QUANT_CI_`,
@@ -155,8 +186,8 @@ Set **Cache residency** on each pool.
 
 | Option | What happens |
 |---|---|
-| **Australia only** (default) | Cache data never leaves Australia. If the pool's cache is unavailable, jobs run without a cache. |
-| **Allow GitHub fallback** | If the pool's cache is unavailable, jobs use GitHub's cache. |
+| **Australia only** (default) | Cache data never leaves Australia. If the pool's cache service is not available, cache and artifact steps fail rather than fall back to GitHub's storage. |
+| **Allow GitHub fallback** | If the pool's cache service is not available, cache and artifact steps fall back to GitHub's storage. |
 
 A change applies to the next job each runner machine starts.
 
@@ -210,8 +241,8 @@ Full procedure, the export workflow and the import script:
 6. **Run, then delete.** After the first green run of each workflow, delete the GitHub secrets
    it used.
 
-Keep these on GitHub-hosted runners: macOS and Windows jobs, and jobs in public repositories.
-Their secrets stay on GitHub.
+Keep these on GitHub-hosted runners: macOS and Windows jobs, and jobs in public repositories
+unless Quant has enabled the pool for public repositories. Their secrets stay on GitHub.
 
 ### Differences from `ubuntu-latest`
 
@@ -229,11 +260,22 @@ Their secrets stay on GitHub.
 | Symptom | Cause | Fix |
 |---|---|---|
 | Job stays "Waiting for a runner" | Label typo, the App is not installed on that repository, or the pool is at its concurrent-job limit | Copy the `runs-on` line from the dashboard; check the App's repository access; check the pool alerts |
-| Job on a public repository never starts | Public repositories are refused | Make the repository private, or keep the job on GitHub-hosted runners |
+| Job stays queued and the pool shows **A job asked for labels this pool does not have** | A label in `runs-on` is not one of `self-hosted`, `linux`, `quant`, the pool name, and at most one architecture label (`x64` or `arm64`) that the pool has | Cancel the job in GitHub and fix `runs-on`. Quant cannot cancel the job |
+| Job of a public repository is refused before its first step | A pool runs jobs of public repositories only when Quant has enabled that for the pool | Contact Quant support to enable the pool for public repositories, or keep the job on GitHub-hosted runners |
+| Job fails at set-up, before its first step | Every job is confirmed with GitHub before it starts. GitHub's API had a fault, or the confirmation took longer than 15 seconds | Run the job again |
+| A step ends with exit code 137 | The step needed more memory than the job has (6 GiB on Small, 14 GiB on Medium and Large), and the kernel stopped it | Lower the memory the step uses, for example with fewer parallel workers. On the Small tier, you can also move the pool to a larger tier |
+| `fork: retry: Resource temporarily unavailable` | The job reached its limit of 16,384 processes and threads | Lower the number of processes and threads the job starts at one time |
+| Job stops and GitHub shows a lost runner | The machine had less than 3 GiB of disk free. Jobs on one virtual machine share its disk. With less than 10 GiB free, the machine takes no new job | Run the job again. Clean large build outputs, prune Docker images in long jobs, or use a larger tier |
 | Job with `arm64` never starts | The pool has only `x64` | Edit the pool to add `arm64`, or change the label |
 | First job after a quiet period takes about a minute | Machines start on demand | Expected; later jobs start at once while the pool is warm |
-| `${{ env.NAME }}` is empty | Value not saved for this repository, a branch rule does not match, a `pull_request` or tag run with a branch-ruled value, or a fork pull request | List the values with `?repo=owner/name`; check the branch rules and the event |
-| A cache is not restored | The branch rules do not reach that cache, the run is a pull request from a fork or a `pull_request_target` run that a fork started, the entry is older than 14 days, or the pool is **Australia only** and its cache is unavailable | Check the branch rules in [Build cache](#build-cache); save the cache again on the base branch; for the last case, choose **Allow GitHub fallback** on the pool |
+| `${{ env.NAME }}` is empty | Value not saved for this repository, a branch rule does not match, or one of the next three rows | List the values with `?repo=owner/name`; check the branch rules and the event |
+| A value with a branch rule is empty on a tag run, a `release` event run or a pull request run | The value is given only to a run whose ref is one of the listed branches (`refs/heads/<branch>`) on a `push`, `workflow_dispatch` or `schedule` event. A tag with the same name as the branch does not count | Use a value with no branch rule, or run the deploy from the branch |
+| The value list shows a withheld reason and the value is empty in the job | A repo-scope value is bound to the repository itself, not to its name. The repository was deleted and a new one was created with the same name | Save the value again |
+| A pull request from a fork has empty values and a cold build | A pull request from a fork of a private repository gets no Quant values and no build cache | Expected. A job that runs for a fork pull request must work without Quant values and without a cache |
+| PUT of a repo-scope value returns 400 (not connected) | The repository's GitHub owner is not connected to a pool | Connect the owner to a pool, then save the value |
+| PUT of a repo-scope value returns 503 with `Retry-After` | GitHub is unavailable | Try again after that time |
+| A cache is not restored | The branch rules do not reach that cache, the run is a pull request from a fork or a `pull_request_target` run that a fork started, or the entry is older than 14 days | Check the branch rules in [Build cache](#build-cache); save the cache again on the base branch |
+| A cache or artifact step fails | The pool is **Australia only** and its cache service is not available, so the steps fail rather than fall back to GitHub's storage | Run the job again later. If the steps must fall back to GitHub's storage, choose **Allow GitHub fallback** on the pool |
 | buildx `type=gha` export fails | The default Docker driver does not support the gha cache | Add `docker/setup-buildx-action` before `build-push-action` |
 | `Unable to reserve cache` | The key already exists, and a save to an existing key is refused | Use a new key, or select **Delete entry** and run again |
 | `${{ secrets.NAME }}` is empty on Quant runners | The secret moved to Quant, or was never on GitHub | Use `${{ env.NAME }}` |
