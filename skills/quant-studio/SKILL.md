@@ -142,7 +142,7 @@ deployed. There are two ways to deploy, chosen in **Settings > General > Use Qua
 
 A publisher can schedule a draft to publish, or a live entry to unpublish, at a set time on the production
 branch. At that time Quant commits the approved change, builds the whole site and publishes it. Nobody needs
-to keep a browser open. Available on QuantCDN. On QuantGov it is not available yet.
+to keep a browser open. Available on QuantCDN and QuantGov.
 
 1. A person with `manage_studio` turns it on in **Settings > General > Scheduled publishing > Allow
    scheduled publishing**, and sets the **Time zone** (default `Australia/Melbourne`). Publishers enter
