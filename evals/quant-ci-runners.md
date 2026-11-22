@@ -4,7 +4,7 @@ Prompt: We are on QuantGov (https://dash.quantgov.cloud), Quant organisation `de
 Platform: gov
 Must include:
 - `runs-on: [self-hosted, quant, build, x64]`
-- `${{ secrets.DEPLOY_KEY }}` and `${{ secrets.NPM_TOKEN }}` become `${{ env.DEPLOY_KEY }}` and `${{ env.NPM_TOKEN }}`; `${{ vars.REGION }}` becomes `${{ env.REGION }}`
+- `${{ secrets.DEPLOY_KEY }}`, `${{ secrets.NPM_TOKEN }}` and `${{ vars.REGION }}` do not change in the workflow; a job on a Quant runner reads the Quant values with the same syntax
 - A one-time export workflow on a temporary branch that reads `toJSON(secrets)`, with a job for the `production` environment, encrypts the values to a public key whose private key stays on the operator's machine, and uploads only ciphertext
 - The values API `https://dash.quantgov.cloud/api/v3/organizations/dept-x/ci/values` with `kind: "secret"` and `repo: "dept-x/portal"`
 - `DEPLOY_KEY` gets a branch rule `main`, because Quant uses branch rules where GitHub used the environment
@@ -15,6 +15,7 @@ Must not include:
 - Storing the Quant API token as a GitHub secret
 - `dashboard.quantcdn.io`
 - Printing a secret value
+- Changing `${{ secrets.NAME }}` or `${{ vars.NAME }}` to `${{ env.NAME }}`
 
 Prompt: Our job uses `runs-on: [self-hosted, quant, build, arm64]` on a public repository and is refused before its first step. What is wrong?
 Platform: public
