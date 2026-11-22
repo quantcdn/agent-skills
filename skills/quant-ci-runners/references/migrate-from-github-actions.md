@@ -227,7 +227,7 @@ cd .. && rm -rf quant-export                         # private key and decrypted
 
 Remove `quant-export` from any environment's deployment branches that you changed.
 
-## 6. Rewrite the workflows
+## 6. Change the workflows
 
 For each job that moves:
 
@@ -238,19 +238,19 @@ For each job that moves:
      steps:
        - run: ./deploy.sh
          env:
--          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
--          REGION: ${{ vars.REGION }}
-+          DEPLOY_KEY: ${{ env.DEPLOY_KEY }}
-+          REGION: ${{ env.REGION }}
+           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+           REGION: ${{ vars.REGION }}
 ```
 
+- `${{ secrets.NAME }}` and `${{ vars.NAME }}` do not change. A job on a Quant runner reads a
+  Quant value with the same syntax.
 - `${{ secrets.GITHUB_TOKEN }}` stays.
 - Keep `environment:` only for GitHub's approval gate or deployment history; it no longer
   supplies the secrets.
-- Remove the `env:` mapping entirely where the name is the same: the value is already in the
-  job's environment. Keep the mapping for `with:` inputs of actions (`token: ${{ env.NPM_TOKEN }}`).
-- A job that stays on GitHub-hosted runners (macOS, Windows, public repository) keeps
-  `${{ secrets.NAME }}`; do not delete those GitHub secrets.
+- Keep the `env:` mappings and the `with:` inputs of actions. Values are not put in the job
+  environment automatically: a step sees a value only when the workflow passes it.
+- A job that stays on GitHub-hosted runners (macOS, Windows, public repository) does not receive
+  Quant values; do not delete the GitHub secrets it uses.
 
 ## 7. Verify, then delete the GitHub secrets
 

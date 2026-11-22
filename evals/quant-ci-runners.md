@@ -4,7 +4,7 @@ Prompt: We are on QuantGov (https://dash.quantgov.cloud), Quant organisation `de
 Platform: gov
 Must include:
 - `runs-on: [self-hosted, quant, build, x64]`
-- `${{ secrets.DEPLOY_KEY }}` and `${{ secrets.NPM_TOKEN }}` become `${{ env.DEPLOY_KEY }}` and `${{ env.NPM_TOKEN }}`; `${{ vars.REGION }}` becomes `${{ env.REGION }}`
+- `${{ secrets.DEPLOY_KEY }}`, `${{ secrets.NPM_TOKEN }}` and `${{ vars.REGION }}` do not change in the workflow; a job on a Quant runner reads the Quant values with the same syntax
 - A one-time export workflow on a temporary branch that reads `toJSON(secrets)`, with a job for the `production` environment, encrypts the values to a public key whose private key stays on the operator's machine, and uploads only ciphertext
 - The values API `https://dash.quantgov.cloud/api/v3/organizations/dept-x/ci/values` with `kind: "secret"` and `repo: "dept-x/portal"`
 - `DEPLOY_KEY` gets a branch rule `main`, because Quant uses branch rules where GitHub used the environment
@@ -15,11 +15,12 @@ Must not include:
 - Storing the Quant API token as a GitHub secret
 - `dashboard.quantcdn.io`
 - Printing a secret value
+- Changing `${{ secrets.NAME }}` or `${{ vars.NAME }}` to `${{ env.NAME }}`
 
-Prompt: Our job uses `runs-on: [self-hosted, quant, build, arm64]` on a public repository and never starts. What is wrong?
+Prompt: Our job uses `runs-on: [self-hosted, quant, build, arm64]` on a public repository and is refused before its first step. What is wrong?
 Platform: public
 Must include:
-- Quant CI runner pools never pick up jobs from public repositories
-- Keep the job on GitHub-hosted runners, or make the repository private
+- A pool runs jobs of public repositories only when Quant has enabled that for the pool; otherwise the job is refused before its first step
+- Contact Quant support to enable the pool for public repositories, or keep the job on GitHub-hosted runners
 Must not include:
 - Turning on "Allow public repositories" in the runner group
