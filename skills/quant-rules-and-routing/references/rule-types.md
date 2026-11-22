@@ -28,6 +28,8 @@ unless a row says otherwise. The dashboard shows the same settings as form field
 | `asn` | mode | `any`, `asn_is` or `asn_is_not`. A PATCH that omits it keeps the current value |
 | `asn_is`, `asn_is_not` | list | AS numbers as strings (`"15169"`), positive integers up to 4294967295. Makes the response `Cache-Control: private` |
 
+| `schedule` | object or `null` | Optional times when the rule applies. See [Schedule](#schedule) |
+
 The API takes `traffic_source`, `ua`, `asn` and `cookie_name` on every rule type. An invalid mode or
 list value returns 422.
 
@@ -35,6 +37,34 @@ Rules for writing lists through the API: a PATCH replaces each list field it sen
 `country_is`, `country_is_not`, `ip_is`, `ip_is_not`, `method_is`, `method_is_not`, `asn_is`,
 `asn_is_not`, `ua_is`, `ua_is_not`, `traffic_source_is`, `traffic_source_is_not`). Lists and maps
 inside the action settings are merged with the stored value, so a PATCH cannot remove entries there.
+
+## Schedule
+
+`schedule` is accepted, validated and returned on every rule type (API specification 4.37.0). A PATCH
+without it keeps the stored schedule; `"schedule": null` removes it.
+
+```json
+"schedule": {
+  "timezone": "Australia/Sydney",
+  "mode": "inactive_during",
+  "weekly": [
+    { "days": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"], "start": "22:00", "end": "07:00" },
+    { "days": ["sat", "sun"], "start": "00:00", "end": "24:00" }
+  ],
+  "once": [ { "start": "2026-12-03T18:00", "end": "2026-12-05T09:00" } ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `timezone` | IANA name (`Australia/Sydney`) or exactly `UTC` |
+| `mode` | `active_during` (applies only inside a window) or `inactive_during` (applies except inside a window) |
+| `weekly` | Up to 50 `{ days, start, end }`. `days`: one or more of `mon`..`sun`, the day the window starts. `start`, `end`: `HH:MM` local. An end not later than the start runs into the next day; `24:00` only as an end; start equal to end is 24 h |
+| `once` | Up to 50 `{ start, end }` as `YYYY-MM-DDTHH:MM`, local, no offset. `end` after `start` |
+
+Start is inclusive, end exclusive. Times are wall-clock times in `timezone`; daylight saving is
+handled (a skipped spring time never occurs, a repeated autumn time counts both times). No schedule,
+or no windows, means the rule behaves as before. Invalid values return 422.
 
 ## Redirect
 

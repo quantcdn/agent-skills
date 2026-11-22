@@ -1,6 +1,6 @@
 ---
 name: quant-rules-and-routing
-description: Use when writing, ordering or debugging project rules on a QuantCDN or QuantGov project - redirects, proxies to an origin, custom response headers, basic auth, custom responses, serve static content, edge function, auth and content filter rules, bot challenge, error pages and the WAF on a proxy rule. Covers how a request is matched (first match wins, which actions end processing, path-only case-insensitive URL patterns, `*`, `$*` vs `$1`, mode fields such as `country` that make a list count), proxy settings (`cache_lifetime`, `origin_timeout`, `only_proxy_404`, the Quant "502 Proxy Error" page), WAF modes, bot challenge scoping, managing rules from the dashboard, the rules API, `quant rules`/deploy-action and Terraform/Pulumi, and testing a change (propagation, cache-busting). Also use when a rule "never matches", a redirect does not fire, Australians get a bot challenge, or the WAF does not block.
+description: Use when writing, ordering or debugging project rules on a QuantCDN or QuantGov project - redirects, proxies to an origin, custom response headers, basic auth, custom responses, serve static content, edge function, auth and content filter rules, bot challenge, error pages and the WAF on a proxy rule. Covers how a request is matched (first match wins, which actions end processing, path-only case-insensitive URL patterns, `*`, `$*` vs `$1`, mode fields such as `country` that make a list count), proxy settings (`cache_lifetime`, `origin_timeout`, `only_proxy_404`, the Quant "502 Proxy Error" page), WAF modes, bot challenge scoping, rule schedules (`schedule`, a timed switch to the static copy), managing rules from the dashboard, the rules API, `quant rules`/deploy-action and Terraform/Pulumi, and testing a change (propagation, cache-busting). Also use when a rule "never matches", a redirect does not fire, Australians get a bot challenge, or the WAF does not block.
 ---
 
 # Rules and routing on Quant
@@ -14,7 +14,8 @@ function, show a bot challenge, or block with the WAF. For the platform overview
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Rules behave the same on both. Only the host you call changes. Checked 2026-10-24 against the dashboard
 API (`/api/v2`, specification 4.26.0), the edge runtime, `@quantcdn/quant-cli` 7.0.2,
-`quantcdn/deploy-action` v7.0.1 and Terraform `quantcdn/quant` v5.14.
+`quantcdn/deploy-action` v7.0.1 and Terraform `quantcdn/quant` v5.14. Rule schedules checked 2026-11-22
+against specification 4.37.0, and `quant rules` against `@quantcdn/quant-cli` 7.4.0.
 
 | | Public | Gov |
 |---|---|---|
@@ -156,6 +157,29 @@ not retried. After repeated failures in a short time, Quant returns the 502 for 
 without contacting the origin. To show your own page: enable "Use static error pages" on the proxy
 rule, list `502`, and publish a page at `/_quant502`.
 
+## Schedules
+
+Any rule can have an optional `schedule` (rules API, specification 4.37.0; dashboard rule editor,
+Conditions, "Schedule"). It is being rolled out: the dashboard section shows only where it is enabled.
+The edge checks it on every request; no dashboard job runs. Field details and a JSON example are in
+[references/rule-types.md](references/rule-types.md#schedule).
+
+- `mode: "active_during"` (dashboard "Apply only during"): the rule applies only inside a window.
+  `mode: "inactive_during"` ("Apply except during"): the rule applies except inside a window. A skipped
+  rule is passed over and the next rule is checked. No schedule, or no windows, means always on.
+- **Break-glass on a timer:** put "Apply except during" on the **proxy rule itself**. Inside the window
+  the proxy does not apply, so the site serves its static copy (crawler pages) and the origin gets no
+  edge traffic; afterwards it proxies again by itself. Pages missing from the copy return 404 in the
+  window. A schedule on a rule placed **below** a `*` proxy rule does nothing, because that rule never runs.
+- **Caching:** when a request matches a scheduled rule's domains and URLs (inside or outside a
+  window), the edge caps the shared-cache lifetime at 60 s (`s-maxage` and the stale directives; browser `max-age` is unchanged). A switch usually shows within
+  about 1-2 minutes of a window boundary or a save. Responses cached before the schedule was added keep
+  their old lifetime, so add it at least one cache lifetime before the first window (or purge). With no
+  origin `Cache-Control`, a cached page can be served for up to 15 minutes after a switch; cached pages
+  never reach the origin.
+- **API:** a PATCH without `schedule` keeps the stored one; `"schedule": null` removes it. Invalid zones,
+  times, empty `days`, end not after start, or more than 50 entries return **422**.
+
 ## WAF
 
 The WAF runs **only on proxy rules**. Static content served without a proxy rule is not inspected.
@@ -246,7 +270,9 @@ jq '{url: (.url + ["/promo-2026"] | unique)}' rule.json |
 
 3. Or purge the affected paths (`quant-domains-cache-purge`).
 4. Read the headers: `Location` for redirects, `Quant-Waf-Rule` for WAF blocks, `quant-404-proxied` for
-   only-on-404 proxies, a `Set-Cookie: quant_bot_verification` after a passed challenge.
+   only-on-404 proxies, a `Set-Cookie: quant_bot_verification` after a passed challenge. Every response
+   has `quant-features: rule-schedule`; when a scheduled rule was evaluated, `quant-rule-schedule` is
+   `active` (the rule applied) or `inactive` (it was skipped).
 
 ## Common problems
 
@@ -272,12 +298,15 @@ jq '{url: (.url + ["/promo-2026"] | unique)}' rule.json |
 | 400 from a proxy rule PATCH | Invalid `thresholds` value (zero `rps`, `hits` or `minutes`) or `notify_slack_hits_rpm` | Send integers of 1 or more; `notify_slack_hits_rpm` 0 turns it off |
 | 422 with `asn`, `ua` or `traffic_source` | Mode not `any`, `<name>_is` or `<name>_is_not`; unknown traffic source; AS number out of range | Fix the field the response names |
 | Auth-protected path returns 503 | The auth function is missing, unpublished or not an auth function | Deploy and publish the function; check the rule's function UUID |
+| Scheduled break-glass never switches to static | The schedule is on a rule below the `*` proxy rule | Put the schedule on the proxy rule itself, mode `inactive_during` |
+| A scheduled switch shows late for some pages | Those responses were cached before the schedule was added, or the origin sends no `Cache-Control` | Add schedules one cache lifetime ahead, or purge; check with `?cb=$RANDOM` and `quant-rule-schedule` |
 | `*.example.com` domain rule never matches | Domains are exact host names | List each host name, or `any` |
 
 ## Further reading
 
 - Page rules: https://docs.quantcdn.io/dashboard/page-rules/
 - CDN proxy: https://docs.quantcdn.io/dashboard/page-rules-proxy/
+- Rule schedules: https://docs.quantcdn.io/dashboard/page-rules-schedules/
 - WAF on a proxy rule: https://docs.quantcdn.io/dashboard/page-rules-waf/
 - Configure the WAF: https://docs.quantcdn.io/guides/security/configure-waf/
 - Custom error pages: https://docs.quantcdn.io/custom-error-pages/
@@ -286,4 +315,4 @@ jq '{url: (.url + ["/promo-2026"] | unique)}' rule.json |
 - Related skills: `quant-security-best-practice`, `quant-platform`, `quant-cli`, `quant-edge-functions-and-kv`, `quant-iac`,
   `quant-domains-cache-purge`, `quant-static-sites`
 
-<!-- checked against npm:@quantcdn/quant-cli 7.0.2 -->
+<!-- checked against npm:@quantcdn/quant-cli 7.4.0 -->
