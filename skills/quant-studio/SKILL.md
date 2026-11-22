@@ -158,7 +158,7 @@ to keep a browser open. Available on QuantCDN. On QuantGov it is not available y
   `readingTime: Expected type "number", received "string"`. Fix the draft, save it, then schedule it again.
 - A schedule publishes the draft as it was when it was scheduled. If someone edits that draft or the live
   entry afterwards, or turns scheduling off, or the publisher loses publish permission, the schedule does
-  not run. It goes to **Review**: a publisher checks the entry and schedules it again.
+  not run. Its status becomes **Pending review**: a publisher checks the entry and schedules it again.
 - If the build rejects the site, the schedule also goes to review. The reason and a support reference
   show on the **Scheduled** screen.
 - Expect the change on the live site a few minutes after its slot: the run builds and publishes the
@@ -256,7 +256,7 @@ Built-in roles: **Organisation Owner** and **Organisation Admin** (all), **Studi
 | Build & Publish says another user is publishing the site | Another full publish holds the site's publish lock | Wait for that publish to finish. If its tab was closed, the lock clears within 2 minutes |
 | No **Schedule publish…** button | Scheduling is off for the project, the user lacks `publish_studio`, the entry has no saved draft, or the branch is not the production branch | Turn it on in **Settings > General**, give **Studio Content Publisher**, save the draft, or switch to the production branch |
 | Schedule refused: "This draft would fail the site build" | The saved draft does not match the collection schema | Fix the named field, save the draft, schedule again |
-| A schedule shows **Review** instead of publishing | The draft or the live entry changed after it was scheduled, scheduling was turned off, the publisher lost permission, or the build rejected the site | Check the entry and the reason, then schedule it again |
+| A schedule shows **Pending review** instead of publishing | The draft or the live entry changed after it was scheduled, scheduling was turned off, the publisher lost permission, or the build rejected the site | Check the entry and the reason, then schedule it again |
 | Scheduled change "is on the site's branch, but not live" | The run stopped after its commit reached the production branch | Publish the site (**Deploy** or **Build & Publish**) |
 | Build & Publish fails with "lost the site's publish lock" | The tab stopped sending updates and another publish started | Publish again when the other publish finishes |
 
