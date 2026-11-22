@@ -171,8 +171,8 @@ The edge checks it on every request; no dashboard job runs. Field details and a 
   the proxy does not apply, so the site serves its static copy (crawler pages) and the origin gets no
   edge traffic; afterwards it proxies again by itself. Pages missing from the copy return 404 in the
   window. A schedule on a rule placed **below** a `*` proxy rule does nothing, because that rule never runs.
-- **Caching:** while a scheduled rule matches a request, the edge caps the shared-cache lifetime at 60 s
-  (`s-maxage` and the stale directives; browser `max-age` is unchanged). A switch usually shows within
+- **Caching:** when a request matches a scheduled rule's domains and URLs (inside or outside a
+  window), the edge caps the shared-cache lifetime at 60 s (`s-maxage` and the stale directives; browser `max-age` is unchanged). A switch usually shows within
   about 1-2 minutes of a window boundary or a save. Responses cached before the schedule was added keep
   their old lifetime, so add it at least one cache lifetime before the first window (or purge). With no
   origin `Cache-Control`, a cached page can be served for up to 15 minutes after a switch; cached pages
