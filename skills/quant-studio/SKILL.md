@@ -1,6 +1,6 @@
 ---
 name: quant-studio
-description: Use when creating, editing, publishing or migrating a site with Quant Studio on QuantCDN or QuantGov - what Studio is (a visual editor and CMS for Astro sites kept in a GitHub repository) and when to choose it over a plain static template or a Quant Cloud CMS, creating a project from a Studio template (`ssg-astro-studio`, `ssg-astro-studio-civictheme`) or from an existing repository, editing entries and components, drafts, branches and preview environments, pull-request review, what publish does (GitHub workflow deploy vs Quant Builder "Build & Publish"), the custom 404 (`_quant404`), moving an existing site into Studio, and how redirects behave (Astro `redirects` become meta-refresh pages, not 301s; use Quant redirect rules where search ranking matters; paths match case-insensitively). Also use for Studio roles, permissions and API token scopes, and when a Studio save does not reach the live site, the Deploy button is missing, or a custom 404 does not show.
+description: Use when creating, editing, publishing or migrating a site with Quant Studio on QuantCDN or QuantGov - what Studio is (a visual editor and CMS for Astro sites kept in a GitHub repository) and when to choose it over a plain static template or a Quant Cloud CMS, creating a project from a Studio template (`ssg-astro-studio`, `ssg-astro-studio-civictheme`) or from an existing repository, editing entries and components, drafts, branches and preview environments, pull-request review, what publish does (GitHub workflow deploy vs Quant Builder "Build & Publish"), the custom 404 (`_quant404`), moving an existing site into Studio, and how redirects behave (Astro `redirects` become meta-refresh pages, not 301s; use Quant redirect rules where search ranking matters; paths match case-insensitively). Also use for scheduled publishing, Studio roles, permissions and API token scopes, and when a Studio save does not reach the live site, the Deploy button is missing, or a custom 404 does not show.
 ---
 
 # Quant Studio
@@ -138,6 +138,41 @@ deployed. There are two ways to deploy, chosen in **Settings > General > Use Qua
 - Quant purges a path when the content API changes it. For a custom domain, TLS and extra purges, see
   `quant-domains-cache-purge`.
 
+## Scheduled publishing
+
+A publisher can schedule a draft to publish, or a live entry to unpublish, at a set time on the production
+branch. At that time Quant commits the approved change, builds the whole site and publishes it. Nobody needs
+to keep a browser open. Available on QuantCDN. On QuantGov it is not available yet.
+
+1. A person with `manage_studio` turns it on in **Settings > General > Scheduled publishing > Allow
+   scheduled publishing**, and sets the **Time zone** (default `Australia/Melbourne`). Publishers enter
+   times in that time zone.
+2. A publisher (`publish_studio`) saves the draft, then opens **Schedule publish…** (or
+   **Schedule unpublish…** on a live entry) and picks a date and a time. Times are five-minute slots in
+   the future. Each entry has one schedule. To schedule it again, confirm that the new time replaces the earlier one.
+3. The editor shows "Scheduled to publish <time> by <name>", with **Cancel schedule**. The **Scheduled**
+   screen lists every schedule on the site with its state.
+
+- Studio checks the saved draft against the collection schema before it saves the schedule. A draft that
+  would fail the site build is refused with the field and the reason, for example
+  `readingTime: Expected type "number", received "string"`. Fix the draft, save it, then schedule it again.
+- A schedule publishes the draft as it was when it was scheduled. If someone edits that draft or the live
+  entry afterwards, or turns scheduling off, or the publisher loses publish permission, the schedule does
+  not run. It goes to **Review**: a publisher checks the entry and schedules it again.
+- If the build rejects the site, the schedule also goes to review. The reason and a support reference
+  show on the **Scheduled** screen.
+- Expect the change on the live site a few minutes after its slot: the run builds and publishes the
+  whole site. Only one full publish runs per site at a time, so a run waits for a **Build & Publish** that is
+  in progress.
+- A temporary failure (GitHub or the builder not available) is retried. A run that still fails is marked
+  failed with a support reference.
+- When a schedule goes to review or fails, Quant emails the publisher who scheduled it and every member
+  with `manage_studio`.
+- A schedule that has started cannot be cancelled. If a run stops after the commit reached the production
+  branch, the message says the changes "are on the site's branch, but they are not live". Publish the site
+  (**Deploy** or **Build & Publish**) to make them live.
+- Scheduling is in the dashboard only. The Studio API has no schedule calls.
+
 ## Custom 404
 
 Quant serves the content at `/_quant404` as the 404 page; `404.html` alone is not used.
@@ -194,10 +229,12 @@ scope.
 | `browse_studio` | `studio:read` | Read collections, entries, media, branches, pull requests, deployments |
 | `edit_studio` | `studio:write` | Create and update entries, upload media, create branches, create and merge pull requests, use the AI assistant |
 | `delete_studio` | `studio:delete` | Delete entries and media |
-| `manage_studio` | `studio:admin` | Create and delete preview environments, refresh the cached schema |
+| `publish_studio` | `studio:write` | Write to the production branch, merge a review or a branch, deploy and publish, schedule publishing (dashboard only) |
+| `manage_studio` | `studio:admin` | Create and delete preview environments, refresh the cached schema, turn scheduled publishing on and set its time zone |
 
-Built-in roles: **Organisation Owner** and **Organisation Admin** (all), **Studio Editor** (browse, edit,
-delete), **Studio Read Only** (browse). The API sends `Authorization: Bearer <token>`. Most calls take a
+Built-in roles: **Organisation Owner** and **Organisation Admin** (all), **Studio Manager** (publisher and
+`manage_studio`), **Studio Content Publisher** (author and `publish_studio`), **Studio Content Author**
+(browse, edit, delete), **Studio Read Only** (browse). The API sends `Authorization: Bearer <token>`. Most calls take a
 `branch` query parameter; without it the API uses `main`, even if your production branch is different.
 
 ## Common problems
@@ -210,13 +247,17 @@ delete), **Studio Read Only** (browse). The API sends `Authorization: Bearer <to
 | Custom 404 not shown on a workflow-deployed Studio site | The workflow uploads `dist/404.html`; nothing creates `_quant404` | Copy it to `dist/_quant404/index.html` in the build, or use Build & Publish; wait up to 5 minutes |
 | An old URL shows a blank page then jumps, or ranking drops after the move | The redirect is a meta-refresh page with a 200 status | Use a Quant redirect rule with a 301 for those URLs |
 | A live page disappeared after adding redirects | A redirect source equals the page path in another case | Remove the redirect |
-| Read Only user cannot create a branch | `browse_studio` only | Give **Studio Editor** (`edit_studio`) |
+| Read Only user cannot create a branch | `browse_studio` only | Give **Studio Content Author** (`edit_studio`) |
 | API call returns 403 | Token lacks the scope, or the user lacks the permission | Use a token with the matching `studio:*` scope |
 | API call edits the wrong branch | `branch` defaults to `main` | Pass `?branch=<name>` |
 | Merge is rejected | GitHub branch protection | Satisfy the rule in GitHub (reviews, checks) and merge again |
 | Edge function from Studio publish is stale, empty or a source file | The manifest `path` names a file that a build step generates; Studio uploads the committed file as is | Commit the built file, or build in CI and deploy with `quant functions` |
 | Route missing after Build & Publish, with a warning | It needs a native dependency the browser cannot run | Deploy with the workflow for those assets |
 | Build & Publish says another user is publishing the site | Another full publish holds the site's publish lock | Wait for that publish to finish. If its tab was closed, the lock clears within 2 minutes |
+| No **Schedule publish…** button | Scheduling is off for the project, the user lacks `publish_studio`, the entry has no saved draft, or the branch is not the production branch | Turn it on in **Settings > General**, give **Studio Content Publisher**, save the draft, or switch to the production branch |
+| Schedule refused: "This draft would fail the site build" | The saved draft does not match the collection schema | Fix the named field, save the draft, schedule again |
+| A schedule shows **Review** instead of publishing | The draft or the live entry changed after it was scheduled, scheduling was turned off, the publisher lost permission, or the build rejected the site | Check the entry and the reason, then schedule it again |
+| Scheduled change "is on the site's branch, but not live" | The run stopped after its commit reached the production branch | Publish the site (**Deploy** or **Build & Publish**) |
 | Build & Publish fails with "lost the site's publish lock" | The tab stopped sending updates and another publish started | Publish again when the other publish finishes |
 
 ## Further reading
