@@ -14,7 +14,7 @@ without Studio. For the platform overview and the public/gov split, load `quant-
 
 Both platforms: QuantCDN (`https://dashboard.quantcdn.io`) and QuantGov (`https://dash.quantgov.cloud`).
 Studio has the same features on both. Use the dashboard the customer logs in to. On QuantGov, the
-Studio AI assistant uses Australian-resident models only (see `quant-ai`). Checked 2026-11-07 against the
+Studio AI assistant uses Australian-resident models only (see `quant-ai`). Checked 2026-11-25 against the
 Studio documentation, the `ssg-astro-studio` and `ssg-astro-studio-civictheme` templates, `deploy-action`
 v7.1.2 and the in-browser build.
 
@@ -77,9 +77,36 @@ and deploys. Ask for the dashboard URL before you tell a customer which wizard t
   languages, brand and tone for the AI assistant), Forms and Search panels (enable them on the project
   first), and an edge function editor (files in `quant/edge-functions/`; see `quant-edge-functions-and-kv`).
 - The **AI assistant** (Cmd/Ctrl+J) creates and edits entries and files, and can raise pull requests.
+  It can also build dynamic blocks: see "Edge functions from the AI assistant" below.
 
 A draft entry is not built into the site. The template excludes drafts from listings, the feed and static
 pages, and Studio still previews them. Set `draft: false` (or **Save & Publish**) to ship.
+
+### Edge functions from the AI assistant
+
+Ask the assistant for what the page needs ("a contact form that posts to our CRM", "a visit counter").
+It chooses between an Astro page or listing (content known at build time, refreshed by a rebuild) and an
+edge function embedded as an Island (per-request or per-visitor output, form handling, live API data,
+counters, anything that needs a secret). It prefers the static option when both work.
+
+- For an edge function the assistant shows an **approval card** in the chat: the code, the KV stores the
+  function uses, the secrets you must set, and the hosts it calls. Nothing is saved before you select
+  **Deploy**. **Dismiss** discards the proposal.
+- **Deploy** commits the function and its manifest entry to the branch and deploys it to the environment
+  of that branch, the same as Save in the edge function editor. A deploy to the production branch needs
+  the publish permission.
+- After the deploy the assistant embeds the function in the entry as an Island. If the card says the
+  function is saved but not live (for example the branch has no environment), it deploys on the next publish.
+- A change to an existing function is also a proposal. If the function changed in the repository after
+  the proposal was made, the card says so and nothing is deployed: ask the assistant to propose it again.
+- **KV stores are per environment.** The function builds the store ID as
+  `${event.quantOrg}-${event.quantProject}-<name>`, and each Studio environment is its own project. Create
+  a store with that name on every environment, production included, and set its secrets there. A missing
+  store gives `KVError` `FORBIDDEN` (see `quant-edge-functions-and-kv`).
+- The assistant does not see secret values and refuses code that contains a key. Do not paste a key into
+  the chat: store it as a KV secret and tell the assistant the key name.
+- The assistant cannot change routing rules (`quant/edge-rules.json`), and it does not create auth
+  functions or content filters. Use the project's Rules page and the edge function editor for those.
 
 ## Branches, preview and review
 
@@ -242,6 +269,8 @@ Built-in roles: **Organisation Owner** and **Organisation Admin** (all), **Studi
 | Symptom | Cause | Fix |
 |---|---|---|
 | Saved in Studio, the live site did not change | Quant Builder is on: commits are tagged `[skip deploy]` and nothing deploys | Run **Deployments > Build & Publish**. If the entry is `draft: true`, use **Save & Publish** |
+| The AI assistant answers "I can't help with that request" after a message that held an API key | The AI guardrail blocks key-like text, and the chat stays blocked | Start a new chat. Do not paste keys; store them as KV secrets and name the key |
+| The assistant's edge function card says the function is saved but not live | The branch has no environment, or the deploy failed | Publish the branch; the publish deploys every function in the manifest |
 | No **Deploy** button on Deployments | Quant Builder is on; **Build & Publish** replaces it | Use it, or turn Quant Builder off in **Settings > General** |
 | New entry is not on the live site | New entries are `draft: true`, and drafts are not built | **Save & Publish**, then deploy |
 | Custom 404 not shown on a workflow-deployed Studio site | The workflow uploads `dist/404.html`; nothing creates `_quant404` | Copy it to `dist/_quant404/index.html` in the build, or use Build & Publish; wait up to 5 minutes |

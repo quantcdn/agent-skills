@@ -323,6 +323,10 @@ GitHub Actions (gov values shown; public: `https://api.quantcdn.io/v1` and
 
 ## KV stores
 
+In Quant Studio, the AI assistant can write an edge function and embed it as an Island after you approve
+it on a card in the chat: see `quant-studio`. Each Studio environment is its own project, so a store must
+exist on every environment.
+
 Create a store in the dashboard (Compute, K/V Stores), the platform API, Terraform
 (`quant_kv_store`) or template setup. Format 2 adds indexes, conditional writes, transactions
 and ledgers. The dashboard (default) and template setup create format 2 stores. The platform API
